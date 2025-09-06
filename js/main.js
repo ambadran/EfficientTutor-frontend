@@ -1,87 +1,117 @@
-import { checkAuthState, handleLogin, handleSignup, handleLogout } from './auth.js';
-import { renderPage, toggleSidebar } from './ui.js';
+import { showPage } from './ui.js';
+import { handleLogin, handleSignup, checkAuth, handleLogout } from './auth.js';
+import { api } from './api.js';
+import { openWizard } from './components/wizard.js';
+import { showStatusMessage, hideStatusOverlay } from './components/modal.js';
+
 
 // --- CONFIGURATION ---
 export const config = {
-    backendUrl: window.location.hostname === '127.0.0.1'
-        ? 'http://127.0.0.1:5000'
+    backendUrl: ['127.0.0.1', 'localhost', '0.0.0.0'].includes(window.location.hostname)
+        ? 'http://127.0.0.1:5000' 
         : 'https://personal-time-manager.onrender.com',
-    subjects: ['Math', 'Physics', 'Chemistry', 'Biology', 'IT'],
-    colors: {
-        school: 'var(--school-color)',
-        sports: 'var(--sports-color)',
-        others: 'var(--others-color)',
-        tuition: 'var(--tuition-color)',
-        sleep: 'var(--sleep-color)',
-    },
-    defaultSchoolTimes: { start: '06:00', end: '15:00' },
-    defaultSleepTimes: { start: '22:00', end: '05:00' },
-    daysOfWeek: ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-    timeSlotsStartHour: 5,
-    pixelsPerMinute: 1,
 };
 
 // --- GLOBAL STATE ---
-export let appState = {
+export const appState = {
     currentUser: null,
-    students: [],
-    currentStudent: null,
+    students: null,
     currentPage: 'login',
-    currentTimetableDay: new Date().getDay() + 1 > 6 ? 0 : new Date().getDay() + 1,
-    isSidebarOpen: false,
+    authMode: 'login',
+    // THE FIX: Added state for the main timetable view
+    selectedStudentIdForTimetable: null,
+    currentTimetableDayIndex: null, // Saturday=0, Sunday=1, etc.
 };
 
-// --- NAVIGATION ---
-export function navigateTo(pageId) {
-    appState.currentPage = pageId;
-    if (appState.isSidebarOpen) toggleSidebar();
-    renderPage();
+
+// --- EVENT LISTENERS ---
+function initializeEventListeners() {
+    const app = document.getElementById('app');
+
+    app.addEventListener('submit', (e) => {
+        if (e.target.id === 'auth-form') {
+            e.preventDefault();
+            const form = e.target;
+            const email = form.elements.email.value;
+            const password = form.elements.password.value;
+            
+            if (appState.authMode === 'login') {
+                handleLogin(email, password);
+            } else {
+                handleSignup(email, password);
+            }
+        }
+    });
+    
+    app.addEventListener('click', (e) => {
+        const target = e.target;
+
+        if (target.id === 'signup-link') {
+            e.preventDefault();
+            appState.authMode = 'signup';
+            navigateTo('login');
+        }
+        if (target.id === 'login-link') {
+            e.preventDefault();
+            appState.authMode = 'login';
+            navigateTo('login');
+        }
+
+        if (target.id === 'add-student-btn' || target.closest('#add-student-btn')) {
+            openWizard();
+            return;
+        }
+
+        if (target.closest('.nav-link')) {
+            e.preventDefault();
+            const page = target.closest('.nav-link').dataset.page;
+            navigateTo(page);
+        }
+
+        if (target.closest('#logout-btn')) {
+            e.preventDefault();
+            handleLogout();
+        }
+        
+        if(target.closest('.edit-student-btn')) {
+            const studentId = target.closest('.edit-student-btn').dataset.studentId;
+            const student = appState.students.find(s => s.id === studentId);
+            openWizard(student);
+        }
+        
+        if(target.closest('.delete-student-btn')) {
+            const studentId = target.closest('.delete-student-btn').dataset.studentId;
+            handleDeleteStudent(studentId);
+        }
+    });
 }
 
-// --- GLOBAL EVENT LISTENERS ---
-document.body.addEventListener('click', (e) => {
-    const target = e.target;
-    const closest = (selector) => target.closest(selector);
+async function handleDeleteStudent(studentId) {
+    if (confirm('Are you sure you want to delete this student?')) {
+        showStatusMessage('Deleting student...', 'loading');
+        const { success, error } = await api.deleteStudent(appState.currentUser.id, studentId);
+        if (success) {
+            showStatusMessage('Student deleted.', 'success');
+            navigateTo('students');
+        } else {
+            showStatusMessage(`Error: ${error}`, 'error');
+        }
+        setTimeout(hideStatusOverlay, 2000);
+    }
+}
 
-    if (closest('#login-btn')) {
-        e.preventDefault();
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        handleLogin(email, password);
-    }
-    if (closest('#signup-btn')) {
-        e.preventDefault();
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        handleSignup(email, password);
-    }
-    if (closest('#logout-button')) {
-        handleLogout();
-    }
-    const navLink = closest('.nav-link');
-    if (navLink) {
-        e.preventDefault();
-        navigateTo(navLink.id.replace('nav-', ''));
-    }
-    if (closest('#menu-button')) {
-        toggleSidebar();
-    }
-    if (closest('#retry-connection-btn')) {
-        initialize();
-    }
-});
 
-document.getElementById('page-content').addEventListener('change', (e) => {
-    if (e.target.id === 'student-selector') {
-        appState.currentStudent = appState.students.find(s => s.id === e.target.value) || null;
-        renderPage();
-    }
-});
+// --- NAVIGATION ---
+export function navigateTo(pageName) {
+    showPage(pageName);
+}
 
 
 // --- INITIALIZATION ---
-async function initialize() {
-    await checkAuthState();
+function initializeApp() {
+    checkAuth();
+    initializeEventListeners();
 }
 
-initialize();
+initializeApp();
+
