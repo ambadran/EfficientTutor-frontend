@@ -1,117 +1,163 @@
-import { showPage } from './ui.js';
-import { handleLogin, handleSignup, checkAuth, handleLogout } from './auth.js';
-import { api } from './api.js';
-import { openWizard } from './components/wizard.js';
-import { showStatusMessage, hideStatusOverlay } from './components/modal.js';
+// --- IMPORTS ---
+import { appState } from './config.js';
+import { checkBackendStatus, postStudent, deleteStudentRequest } from './api.js';
+import { checkAuthState, handleLogin, handleSignup, handleLogout, loadInitialData } from './auth.js';
+import { navigateTo, renderPage } from './ui/navigation.js';
+import { toggleSidebar, displayGlobalError } from './ui/layout.js';
+import { showStudentRegistrationWizard } from './ui/studentWizard.js';
+import { confirmDeleteStudent } from './ui/templates.js';
+import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback } from './ui/modals.js';
 
-
-// --- CONFIGURATION ---
-export const config = {
-    backendUrl: ['127.0.0.1', 'localhost', '0.0.0.0'].includes(window.location.hostname)
-        ? 'http://127.0.0.1:5000' 
-        : 'https://personal-time-manager.onrender.com',
-};
-
-// --- GLOBAL STATE ---
-export const appState = {
-    currentUser: null,
-    students: null,
-    currentPage: 'login',
-    authMode: 'login',
-    // THE FIX: Added state for the main timetable view
-    selectedStudentIdForTimetable: null,
-    currentTimetableDayIndex: null, // Saturday=0, Sunday=1, etc.
-};
-
-
-// --- EVENT LISTENERS ---
-function initializeEventListeners() {
-    const app = document.getElementById('app');
-
-    app.addEventListener('submit', (e) => {
-        if (e.target.id === 'auth-form') {
-            e.preventDefault();
-            const form = e.target;
-            const email = form.elements.email.value;
-            const password = form.elements.password.value;
-            
-            if (appState.authMode === 'login') {
-                handleLogin(email, password);
-            } else {
-                handleSignup(email, password);
-            }
+// --- DATA HANDLERS ---
+async function handleSaveStudent(studentData) {
+    if (!appState.currentUser) return;
+    showLoadingOverlay('Saving student data...');
+    try {
+        await postStudent(appState.currentUser.id, studentData);
+        if (appState.currentUser.isFirstSignIn) {
+            appState.currentUser.isFirstSignIn = false;
+            localStorage.setItem('efficientTutorUser', JSON.stringify(appState.currentUser));
         }
-    });
-    
-    app.addEventListener('click', (e) => {
-        const target = e.target;
-
-        if (target.id === 'signup-link') {
-            e.preventDefault();
-            appState.authMode = 'signup';
-            navigateTo('login');
-        }
-        if (target.id === 'login-link') {
-            e.preventDefault();
-            appState.authMode = 'login';
-            navigateTo('login');
-        }
-
-        if (target.id === 'add-student-btn' || target.closest('#add-student-btn')) {
-            openWizard();
-            return;
-        }
-
-        if (target.closest('.nav-link')) {
-            e.preventDefault();
-            const page = target.closest('.nav-link').dataset.page;
-            navigateTo(page);
-        }
-
-        if (target.closest('#logout-btn')) {
-            e.preventDefault();
-            handleLogout();
-        }
-        
-        if(target.closest('.edit-student-btn')) {
-            const studentId = target.closest('.edit-student-btn').dataset.studentId;
-            const student = appState.students.find(s => s.id === studentId);
-            openWizard(student);
-        }
-        
-        if(target.closest('.delete-student-btn')) {
-            const studentId = target.closest('.delete-student-btn').dataset.studentId;
-            handleDeleteStudent(studentId);
-        }
-    });
-}
-
-async function handleDeleteStudent(studentId) {
-    if (confirm('Are you sure you want to delete this student?')) {
-        showStatusMessage('Deleting student...', 'loading');
-        const { success, error } = await api.deleteStudent(appState.currentUser.id, studentId);
-        if (success) {
-            showStatusMessage('Student deleted.', 'success');
-            navigateTo('students');
-        } else {
-            showStatusMessage(`Error: ${error}`, 'error');
-        }
-        setTimeout(hideStatusOverlay, 2000);
+        await loadInitialData();
+        closeModal();
+        showStatusMessage('success', 'Student saved successfully!');
+        navigateTo('student-info');
+    } catch (error) {
+        console.error("Error saving student:", error);
+        showStatusMessage('error', error.message);
     }
 }
 
+async function handleDeleteStudent(studentId) {
+    if (!appState.currentUser) return;
+    showLoadingOverlay('Deleting student...');
+    try {
+        await deleteStudentRequest(appState.currentUser.id, studentId);
+        await loadInitialData();
+        showStatusMessage('success', 'Student deleted.');
+        renderPage(); // Re-render the current page
+    } catch (error) {
+        console.error("Error deleting student:", error);
+        showStatusMessage('error', error.message);
+    }
+}
 
-// --- NAVIGATION ---
-export function navigateTo(pageName) {
-    showPage(pageName);
+// --- VALIDATION HELPER ---
+function validateAuthForm() {
+    clearAuthFeedback();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!email || !password) {
+        showAuthFeedback("Email and password cannot be empty.");
+        return null;
+    }
+    if (!emailRegex.test(email)) {
+        showAuthFeedback("Please enter a valid email address.");
+        return null;
+    }
+    return { email, password };
 }
 
 
-// --- INITIALIZATION ---
-function initializeApp() {
-    checkAuth();
-    initializeEventListeners();
+// --- GLOBAL EVENT LISTENERS ---
+document.body.addEventListener('click', (e) => {
+    const target = e.target;
+    const closest = (selector) => target.closest(selector);
+
+    // ... (other UI listeners like share, menu, modal, theme)
+    if (!closest('.share-container')) {
+        document.querySelectorAll('.share-dropdown').forEach(el => el.classList.add('hidden'));
+    }
+    if (closest('#menu-button')) toggleSidebar();
+    if (closest('#modal-close-btn') || (closest('#modal-backdrop') && !closest('.modal-content'))) {
+        closeModal();
+    }
+    if (closest('#theme-toggle-btn')) {
+        document.documentElement.classList.toggle('dark');
+        document.documentElement.classList.toggle('light');
+        renderPage();
+    }
+
+
+    // Navigation
+    const navLink = closest('.nav-link');
+    if (navLink) {
+        e.preventDefault();
+        navigateTo(navLink.id.replace('nav-', ''));
+    }
+
+    // Authentication with Client-Side Validation
+    if (closest('#login-btn')) {
+        e.preventDefault();
+        const credentials = validateAuthForm();
+        if (credentials) {
+            handleLogin(credentials.email, credentials.password);
+        }
+    }
+    if (closest('#signup-btn')) {
+        e.preventDefault();
+        const credentials = validateAuthForm();
+        if (credentials) {
+            if (credentials.password.length < 6) {
+                showAuthFeedback("Password must be at least 6 characters long.");
+                return;
+            }
+            handleSignup(credentials.email, credentials.password);
+        }
+    }
+    if (closest('#logout-button')) handleLogout();
+
+    // Student Info Page
+    if (closest('#add-new-student-btn')) showStudentRegistrationWizard(null, handleSaveStudent);
+    
+    const editStudentBtn = closest('.edit-student-btn');
+    if (editStudentBtn) {
+        const student = appState.students.find(s => s.id === editStudentBtn.dataset.id);
+        if (student) showStudentRegistrationWizard(student, handleSaveStudent);
+    }
+    
+    const deleteStudentBtn = closest('.delete-student-btn');
+    if (deleteStudentBtn) {
+        const student = appState.students.find(s => s.id === deleteStudentBtn.dataset.id);
+        if (student) confirmDeleteStudent(student, handleDeleteStudent);
+    }
+    
+    // Timetable Page
+    const mainTimetable = closest('#page-content .timetable-component');
+    if (mainTimetable) {
+        const dayNavBtn = closest('.day-nav-btn');
+        if (dayNavBtn) {
+            const dir = parseInt(dayNavBtn.dataset.direction);
+            appState.currentTimetableDay = (appState.currentTimetableDay + dir + 7) % 7;
+            renderPage();
+        }
+    }
+});
+
+// ... (rest of the file is unchanged)
+document.getElementById('page-content').addEventListener('change', (e) => {
+    if (e.target.id === 'student-selector') {
+        appState.currentStudent = appState.students.find(s => s.id === e.target.value) || null;
+        renderPage();
+    }
+});
+
+async function initialize() {
+    navigateTo('login');
+    showLoadingOverlay('Connecting to server...');
+    try {
+        await checkBackendStatus();
+        console.log("Backend connection successful.");
+        hideStatusOverlay();
+        await checkAuthState();
+    } catch (error) {
+        console.error("Initialization Error:", error);
+        hideStatusOverlay();
+        displayGlobalError(error.message);
+        document.getElementById('retry-connection-btn')?.addEventListener('click', initialize);
+    }
 }
 
-initializeApp();
-
+initialize();

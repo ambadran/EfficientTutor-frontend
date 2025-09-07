@@ -1,35 +1,54 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
     <title>EfficientTutor</title>
-    
-    <!-- This line adds your logo to the browser tab (favicon) -->
     <link rel="icon" type="image/png" href="assets/EfficientTutor_logo.png">
-
-    <!-- External Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
-    <!-- Your Custom Stylesheet -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="h-full bg-gray-900 text-gray-200 font-sans">
+<body>
 
-    <!-- Main Application Container -->
-    <!-- This div is the root of your application. All content is rendered inside it by JavaScript. -->
-    <div id="app" class="h-full flex">
-        <!-- The app content will be rendered here by JavaScript -->
+    <div id="app-container" class="app-container">
+        <aside id="sidebar" class="sidebar flex flex-col p-4">
+            <h1 class="text-2xl font-bold text-indigo-400 mb-8">EfficientTutor</h1>
+            
+            <nav id="sidebar-nav" class="flex flex-col space-y-2 hidden">
+                <a href="#" id="nav-timetable" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-calendar-alt w-6 mr-3"></i> Timetable</a>
+                <a href="#" id="nav-logs" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-history w-6 mr-3"></i> Logs</a>
+                <a href="#" id="nav-student-info" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-user-graduate w-6 mr-3"></i> Student Info</a>
+                <a href="#" id="nav-settings" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-cog w-6 mr-3"></i> Settings</a>
+            </nav>
+
+            <div class="mt-auto">
+                <div id="user-info" class="text-sm text-gray-400 mb-2 hidden">
+                    <p>Logged in as:</p>
+                    <p id="user-email" class="font-semibold break-all"></p>
+                </div>
+                <button id="logout-button" class="w-full text-left flex items-center p-2 rounded-lg hover:bg-red-800/50 text-red-400 hidden">
+                    <i class="fas fa-sign-out-alt w-6 mr-3"></i> Logout
+                </button>
+            </div>
+        </aside>
+
+        <main id="main-content" class="main-content">
+            <header class="sticky top-0 bg-gray-900/80 backdrop-blur-sm p-4 flex items-center border-b border-gray-700 z-40">
+                <button id="menu-button" class="md:hidden mr-4 p-2 rounded-md hover:bg-gray-700">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <h2 id="page-title" class="text-xl font-semibold">Login</h2>
+            </header>
+            <div id="page-content" class="p-4 md:p-6">
+                </div>
+        </main>
     </div>
 
-    <!-- 
-      This is the main entry point for your application's logic.
-      - "type=module" enables the use of import/export in your JS files.
-      - "defer" ensures the script runs only after the full HTML page is loaded.
-    -->
-    <script type="module" src="js/main.js" defer></script>
+    <div id="modal-container"></div>
+    <div id="status-overlay-container"></div>
 
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>
-

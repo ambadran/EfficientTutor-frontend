@@ -1,95 +1,87 @@
-/* This file is now responsible for everything related to the user's session: 
- * signing up, logging in, logging out, and checking the initial authentication 
- * state when the app loads. It interacts with the api.js module to perform 
- * the network requests and updates the global appState.
- */
-import { api } from './api.js';
-import { appState, navigateTo } from './main.js';
-import { showStatusMessage, hideStatusOverlay } from './components/modal.js';
+import { appState } from './config.js';
+import { loginUser, signupUser, fetchStudents } from './api.js';
+import { showLoadingOverlay, hideStatusOverlay, showAuthFeedback, showStatusMessage } from './ui/modals.js';
+import { navigateTo } from './ui/navigation.js';
 
-/**
- * Checks for a saved user session in localStorage on page load.
- */
-export function checkAuth() {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-        appState.currentUser = JSON.parse(savedUser);
-        console.log('Session restored for:', appState.currentUser.email);
-        navigateTo('timetable');
+export async function loadInitialData() {
+    if (!appState.currentUser) return;
+    try {
+        const students = await fetchStudents(appState.currentUser.id);
+        appState.students = students;
+        appState.currentStudent = students[0] || null;
+    } catch (error) {
+        console.error("Error loading students:", error);
+        if (appState.currentPage === 'login') {
+            showAuthFeedback(error.message);
+        }
+    }
+}
+
+export async function checkAuthState() {
+    const user = JSON.parse(localStorage.getItem('efficientTutorUser'));
+    const nav = document.getElementById('sidebar-nav');
+
+    if (user && user.id) {
+        appState.currentUser = user;
+        document.getElementById('user-info').classList.remove('hidden');
+        document.getElementById('logout-button').classList.remove('hidden');
+        document.getElementById('user-email').textContent = user.email;
+        nav.classList.remove('hidden'); // CHANGED: Show nav menu
+        
+        await loadInitialData();
+        
+        if (appState.currentUser.isFirstSignIn && appState.students.length === 0) {
+            navigateTo('student-info');
+        } else {
+            navigateTo('timetable');
+        }
     } else {
-        // Ensure we're in login mode if there's no session
-        appState.authMode = 'login';
+        nav.classList.add('hidden'); // CHANGED: Ensure nav menu is hidden
         navigateTo('login');
     }
 }
 
 export async function handleLogin(email, password) {
-    // Client-side email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        showStatusMessage('Invalid email format.', 'error');
-        setTimeout(hideStatusOverlay, 3000);
-        return;
-    }
-
-    showStatusMessage('Logging in...', 'loading');
-    const { success, data, error } = await api.login(email, password);
-
-    if (success) {
-        appState.currentUser = data.user;
-        localStorage.setItem('currentUser', JSON.stringify(data.user));
+    showLoadingOverlay('Logging in...');
+    try {
+        const data = await loginUser(email, password);
+        localStorage.setItem('efficientTutorUser', JSON.stringify(data.user));
+        await checkAuthState();
+    } catch (error) {
+        showAuthFeedback(error.message);
+    } finally {
         hideStatusOverlay();
-        if (data.user.isFirstSignIn) {
-            navigateTo('students');
-        } else {
-            navigateTo('timetable');
-        }
-    } else {
-        showStatusMessage(`Login Failed: ${error}`, 'error');
-        setTimeout(hideStatusOverlay, 3000);
     }
 }
 
-
-/**
- * THE FIX: The signup handler is now much simpler.
- * It makes one API call and directly handles the resulting user session.
- * The password length check has been REMOVED as requested.
- */
 export async function handleSignup(email, password) {
-    // Client-side email validation remains.
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        showStatusMessage('Invalid email format.', 'error');
-        setTimeout(hideStatusOverlay, 3000);
-        return;
-    }
+    showLoadingOverlay('Signing up...');
+    try {
+        const data = await signupUser(email, password);
+        localStorage.setItem('efficientTutorUser', JSON.stringify(data.user));
+        
+        showStatusMessage('success', data.message || 'Signup successful!');
 
-    showStatusMessage('Creating account...', 'loading');
-    // The '/signup' endpoint now returns the full user session data upon success.
-    const { success, data, error } = await api.signup(email, password);
+        setTimeout(() => {
+            checkAuthState();
+        }, 2000);
 
-    if (success) {
-        // The signup was successful, and we already have the user data.
-        // No need to call handleLogin again.
-        appState.currentUser = data.user;
-        localStorage.setItem('currentUser', JSON.stringify(data.user));
+    } catch (error) {
         hideStatusOverlay();
-        // The isFirstSignIn flag will always be true for a new user.
-        navigateTo('students');
-    } else {
-        showStatusMessage(`Signup Failed: ${error}`, 'error');
-        setTimeout(hideStatusOverlay, 3000);
+        showAuthFeedback(error.message);
     }
 }
 
 export function handleLogout() {
+    localStorage.removeItem('efficientTutorUser');
     appState.currentUser = null;
-    localStorage.removeItem('currentUser');
-    console.log('User logged out.');
+    appState.students = [];
+    appState.currentStudent = null;
     
-    // THE FIX: Reset authMode to ensure the login page is shown
-    appState.authMode = 'login';
+    // CHANGED: Hide user info, logout button, and nav menu
+    document.getElementById('user-info').classList.add('hidden');
+    document.getElementById('logout-button').classList.add('hidden');
+    document.getElementById('sidebar-nav').classList.add('hidden');
+
     navigateTo('login');
 }
-
