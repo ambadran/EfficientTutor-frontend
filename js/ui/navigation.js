@@ -1,6 +1,13 @@
 import { appState } from '../config.js';
 import { toggleSidebar } from './layout.js';
-import { renderLoginPage, renderStudentInfoPage, renderLogsPage, renderSettingsPage } from './templates.js';
+import { 
+    renderLoginPage, 
+    renderStudentInfoPage, 
+    renderLogsPage, 
+    renderSettingsPage,
+    renderNotesPage,
+    renderMeetingLinksPage
+} from './templates.js';
 import { renderTimetablePage } from './timetable.js';
 import { displayGlobalError } from './layout.js';
 
@@ -26,19 +33,34 @@ export async function renderPage() {
                 break;
             case 'timetable':
                 pageTitle.textContent = 'Timetable';
-                content = await renderTimetablePage();
+                // For students, their ID is the currentUser ID. For parents, it's the currentStudent ID.
+                const studentIdForTimetable = appState.currentUser.role === 'student'
+                    ? appState.currentUser.id
+                    : appState.currentStudent?.id;
+                content = await renderTimetablePage(studentIdForTimetable);
                 break;
             case 'logs':
                 pageTitle.textContent = 'Logs';
                 content = await renderLogsPage();
                 break;
+
             case 'student-info':
                 pageTitle.textContent = 'Student Info';
                 content = renderStudentInfoPage();
                 break;
+
             case 'settings':
                 pageTitle.textContent = 'Settings';
                 content = renderSettingsPage();
+                break;
+            // NEW Student Pages
+            case 'notes':
+                pageTitle.textContent = 'Notes';
+                content = await renderNotesPage();
+                break;
+            case 'meeting-links':
+                pageTitle.textContent = 'Meeting Links';
+                content = await renderMeetingLinksPage();
                 break;
             default:
                 pageTitle.textContent = 'Not Found';

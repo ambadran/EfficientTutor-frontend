@@ -1,12 +1,13 @@
 // --- IMPORTS ---
 import { appState } from './config.js';
-import { checkBackendStatus, postStudent, deleteStudentRequest } from './api.js';
+import { checkBackendStatus, postStudent, deleteStudentRequest, fetchStudentCredentials } from './api.js';
 import { checkAuthState, handleLogin, handleSignup, handleLogout, loadInitialData } from './auth.js';
 import { navigateTo, renderPage } from './ui/navigation.js';
 import { toggleSidebar, displayGlobalError } from './ui/layout.js';
 import { showStudentRegistrationWizard } from './ui/studentWizard.js';
 import { confirmDeleteStudent } from './ui/templates.js';
-import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback } from './ui/modals.js';
+// THIS LINE IS CORRECTED to include all necessary functions
+import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback, showModal } from './ui/modals.js';
 
 // --- DATA HANDLERS ---
 async function handleSaveStudent(studentData) {
@@ -42,6 +43,33 @@ async function handleDeleteStudent(studentId) {
     }
 }
 
+async function handleViewCredentials(studentId) {
+    showLoadingOverlay('Fetching credentials...');
+    try {
+        const creds = await fetchStudentCredentials(appState.currentUser.id, studentId);
+        const content = `
+            <div class="space-y-4">
+                <div>
+                    <label class="text-sm font-medium text-gray-400">Email</label>
+                    <input type="text" readonly value="${creds.email}" class="w-full mt-1 p-2 bg-gray-800 rounded-md border border-gray-600">
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-400">Password</label>
+                    <input type="text" readonly value="${creds.generated_password}" class="w-full mt-1 p-2 bg-gray-800 rounded-md border border-gray-600">
+                </div>
+                <p class="text-xs text-gray-500">Please save this password in a secure location.</p>
+            </div>
+        `;
+        const footer = `<div class="flex justify-end"><button id="modal-close-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Close</button></div>`;
+        showModal('Student Credentials', content, footer);
+    } catch (error) {
+        showStatusMessage('error', error.message);
+    } finally {
+        hideStatusOverlay();
+    }
+}
+
+
 // --- VALIDATION HELPER ---
 function validateAuthForm() {
     clearAuthFeedback();
@@ -66,7 +94,6 @@ document.body.addEventListener('click', (e) => {
     const target = e.target;
     const closest = (selector) => target.closest(selector);
 
-    // ... (other UI listeners like share, menu, modal, theme)
     if (!closest('.share-container')) {
         document.querySelectorAll('.share-dropdown').forEach(el => el.classList.add('hidden'));
     }
@@ -80,15 +107,12 @@ document.body.addEventListener('click', (e) => {
         renderPage();
     }
 
-
-    // Navigation
     const navLink = closest('.nav-link');
     if (navLink) {
         e.preventDefault();
         navigateTo(navLink.id.replace('nav-', ''));
     }
 
-    // Authentication with Client-Side Validation
     if (closest('#login-btn')) {
         e.preventDefault();
         const credentials = validateAuthForm();
@@ -109,7 +133,6 @@ document.body.addEventListener('click', (e) => {
     }
     if (closest('#logout-button')) handleLogout();
 
-    // Student Info Page
     if (closest('#add-new-student-btn')) showStudentRegistrationWizard(null, handleSaveStudent);
     
     const editStudentBtn = closest('.edit-student-btn');
@@ -124,7 +147,11 @@ document.body.addEventListener('click', (e) => {
         if (student) confirmDeleteStudent(student, handleDeleteStudent);
     }
     
-    // Timetable Page
+    const viewCredsBtn = closest('.view-creds-btn');
+    if (viewCredsBtn) {
+        handleViewCredentials(viewCredsBtn.dataset.id);
+    }
+    
     const mainTimetable = closest('#page-content .timetable-component');
     if (mainTimetable) {
         const dayNavBtn = closest('.day-nav-btn');
@@ -136,7 +163,6 @@ document.body.addEventListener('click', (e) => {
     }
 });
 
-// ... (rest of the file is unchanged)
 document.getElementById('page-content').addEventListener('change', (e) => {
     if (e.target.id === 'student-selector') {
         appState.currentStudent = appState.students.find(s => s.id === e.target.value) || null;

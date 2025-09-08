@@ -43,3 +43,18 @@ export const deleteStudentRequest = (userId, studentId) => apiRequest('/students
 export const fetchTimetable = (studentId) => apiRequest(`/timetable?student_id=${studentId}`);
 
 export const fetchLogs = (studentId) => apiRequest(`/logs?student_id=${studentId}`);
+
+// --- NEW API FUNCTIONS ---
+
+export const fetchStudentCredentials = (parentId, studentId) => 
+    apiRequest(`/student-credentials?userId=${parentId}&studentId=${studentId}`);
+
+export const fetchNotes = (studentId) => 
+    apiRequest(`/notes?studentId=${studentId}`);
+
+export const fetchMeetingLinks = (studentId) => 
+    apiRequest(`/meeting-links?studentId=${studentId}`);
+
+// --- NEW API FUNCTION ---
+export const fetchStudentProfile = (studentId) => 
+    apiRequest(`/student-profile?studentId=${studentId}`);

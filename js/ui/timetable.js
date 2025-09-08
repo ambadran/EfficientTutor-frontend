@@ -3,8 +3,9 @@ import { fetchTimetable } from '../api.js';
 import { showDialog, closeDialog } from './modals.js';
 
 function renderStudentSelector() {
-    if (appState.students.length <= 1) return '';
-    // Reads from s.firstName and s.lastName
+    // This selector is only for parents
+    if (appState.currentUser?.role !== 'parent' || appState.students.length <= 1) return '';
+    
     const options = appState.students.map(s => `<option value="${s.id}" ${appState.currentStudent && appState.currentStudent.id === s.id ? 'selected' : ''}>${s.firstName} ${s.lastName}</option>`).join('');
     return `<div class="mb-4"><label for="student-selector" class="text-sm text-gray-400">Viewing Timetable for:</label><select id="student-selector" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600">${options}</select></div>`;
 }
@@ -172,16 +173,23 @@ export function renderTimetableComponent(isWizard, dataSource, tuitions = []) {
         </div>`;
 }
 
-export async function renderTimetablePage() {
-    if (!appState.currentStudent) {
-        return `<div class="text-center p-8 text-gray-400">No student selected. Please add or select a student from the 'Student Info' page.</div>`;
+// THIS FUNCTION IS UPDATED to accept a studentId
+export async function renderTimetablePage(studentId) {
+    if (!studentId) {
+        if (appState.currentUser?.role === 'parent') {
+            return `<div class="text-center p-8 text-gray-400">No student selected. Please add or select a student from the 'Student Info' page.</div>`;
+        }
+        return `<div class="text-center p-8 text-gray-400">Loading timetable...</div>`;
     }
+    
     try {
-        const backendTimetable = await fetchTimetable(appState.currentStudent.id);
-        return renderTimetableComponent(false, appState.currentStudent, backendTimetable.tuitions);
+        const backendTimetable = await fetchTimetable(studentId);
+        // The data source for the timetable component depends on the user's role
+        const dataSource = appState.currentUser.role === 'parent' ? appState.currentStudent : appState.currentUser;
+        return renderTimetableComponent(false, dataSource, backendTimetable.tuitions);
     } catch (error) {
         console.error("Error fetching timetable:", error);
-        return renderTimetableComponent(false, appState.currentStudent, []);
+        return `<div class="text-center text-red-400 p-8">Error loading timetable: ${error.message}</div>`;
     }
 }
 

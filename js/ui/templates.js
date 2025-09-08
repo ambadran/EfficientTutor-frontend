@@ -1,7 +1,37 @@
 import { appState } from '../config.js';
-import { fetchLogs } from '../api.js';
+import { fetchLogs, fetchNotes, fetchMeetingLinks } from '../api.js';
 import { showModal, closeModal } from './modals.js';
 import { renderPage } from './navigation.js';
+
+// --- NEW: Sidebar Rendering ---
+export function renderSidebar(role) {
+    const navContainer = document.getElementById('sidebar-nav');
+    if (!navContainer) return;
+
+    let navLinks = '';
+    if (role === 'parent') {
+        navLinks = `
+            <a href="#" id="nav-timetable" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-calendar-alt w-6 mr-3"></i> Timetable</a>
+            <a href="#" id="nav-logs" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-history w-6 mr-3"></i> Logs</a>
+            <a href="#" id="nav-student-info" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-user-graduate w-6 mr-3"></i> Student Info</a>
+            <a href="#" id="nav-settings" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-cog w-6 mr-3"></i> Settings</a>
+        `;
+    } else if (role === 'student') {
+        navLinks = `
+            <a href="#" id="nav-timetable" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-calendar-alt w-6 mr-3"></i> Timetable</a>
+            <a href="#" id="nav-notes" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-book-open w-6 mr-3"></i> Notes</a>
+            <a href="#" id="nav-meeting-links" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-video w-6 mr-3"></i> Meeting Links</a>
+            <a href="#" id="nav-settings" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-cog w-6 mr-3"></i> Settings</a>
+        `;
+    }
+
+    navContainer.innerHTML = navLinks;
+    if (role) {
+        navContainer.classList.remove('hidden');
+    } else {
+        navContainer.classList.add('hidden');
+    }
+}
 
 export function renderLoginPage() {
     return `
@@ -44,7 +74,6 @@ export function confirmDeleteStudent(student, onDeleteCallback) {
 }
 
 export function renderStudentInfoPage() {
-    // Reads from student.firstName, student.lastName, and student.grade
     let studentListHTML = appState.students.map(student => `
         <div class="bg-gray-800 p-4 rounded-lg flex items-center justify-between">
             <div>
@@ -52,8 +81,9 @@ export function renderStudentInfoPage() {
                 <p class="text-sm text-gray-400">Grade: ${student.grade}</p>
             </div>
             <div class="space-x-2">
-                <button class="edit-student-btn p-2 bg-gray-600 hover:bg-gray-500 rounded-md" data-id="${student.id}"><i class="fas fa-edit"></i></button>
-                <button class="delete-student-btn p-2 bg-red-600 hover:bg-red-500 rounded-md" data-id="${student.id}"><i class="fas fa-trash"></i></button>
+                <button title="View Credentials" class="view-creds-btn p-2 bg-blue-600 hover:bg-blue-500 rounded-md" data-id="${student.id}"><i class="fas fa-key"></i></button>
+                <button title="Edit Student" class="edit-student-btn p-2 bg-gray-600 hover:bg-gray-500 rounded-md" data-id="${student.id}"><i class="fas fa-edit"></i></button>
+                <button title="Delete Student" class="delete-student-btn p-2 bg-red-600 hover:bg-red-500 rounded-md" data-id="${student.id}"><i class="fas fa-trash"></i></button>
             </div>
         </div>`).join('');
     
@@ -131,4 +161,81 @@ export function renderSettingsPage() {
                 <p class="text-gray-400">EfficientTutor v1.0.0</p>
             </div>
         </div>`;
+}
+
+// --- NEW: Student Page Templates ---
+
+export async function renderNotesPage() {
+    try {
+        const notes = await fetchNotes(appState.currentUser.id);
+        if (notes.length === 0) {
+            return `<div class="text-center p-8 text-gray-400">No notes have been added for you yet.</div>`;
+        }
+
+        const notesHTML = notes.map(note => `
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h3 class="font-semibold text-lg text-indigo-300">${note.name}</h3>
+                <p class="text-gray-400 my-2">${note.description}</p>
+                <a href="${note.url}" target="_blank" rel="noopener noreferrer" class="inline-block text-sm text-blue-400 hover:text-blue-300">
+                    Open PDF <i class="fas fa-external-link-alt ml-1"></i>
+                </a>
+            </div>
+        `).join('');
+
+        return `<div class="space-y-4">${notesHTML}</div>`;
+    } catch (error) {
+        return `<div class="text-center text-red-400 p-8">Error loading notes: ${error.message}</div>`;
+    }
+}
+
+// THIS FUNCTION IS IMPROVED
+export async function renderMeetingLinksPage() {
+    try {
+        const links = await fetchMeetingLinks(appState.currentUser.id);
+        if (links.length === 0) {
+            return `<div class="text-center p-8 text-gray-400">You have no scheduled tuitions with meeting links yet.</div>`;
+        }
+
+        // Helper function to format ISO dates into a readable string
+        const formatScheduleTime = (startTime, endTime) => {
+            if (!startTime || startTime === '--') {
+                return 'Not Scheduled';
+            }
+            try {
+                const startDate = new Date(startTime);
+                const endDate = new Date(endTime);
+                
+                const dayOptions = { weekday: 'long' };
+                const timeOptions = { hour: 'numeric', minute: 'numeric', hour12: true };
+
+                const dayString = new Intl.DateTimeFormat('en-US', dayOptions).format(startDate);
+                const startTimeString = new Intl.DateTimeFormat('en-US', timeOptions).format(startDate);
+                const endTimeString = new Intl.DateTimeFormat('en-US', timeOptions).format(endDate);
+
+                return `${dayString} at ${startTimeString} - ${endTimeString}`;
+            } catch (e) {
+                // Fallback for any unexpected format
+                return `${startTime} - ${endTime}`;
+            }
+        };
+
+        const linksHTML = links.map(link => `
+            <div class="bg-gray-800 p-4 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <h3 class="font-semibold text-lg">${link.subject}</h3>
+                    <p class="text-sm text-gray-400">${formatScheduleTime(link.start_time, link.end_time)}</p>
+                </div>
+                ${link.meeting_link
+                    ? `<a href="${link.meeting_link}" target="_blank" rel="noopener noreferrer" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition duration-300">
+                           Join Meeting <i class="fas fa-video ml-2"></i>
+                       </a>`
+                    : `<span class="px-4 py-2 bg-gray-600 text-gray-400 rounded-md text-sm">No Link Available</span>`
+                }
+            </div>
+        `).join('');
+
+        return `<div class="space-y-4">${linksHTML}</div>`;
+    } catch (error) {
+        return `<div class="text-center text-red-400 p-8">Error loading meeting links: ${error.message}</div>`;
+    }
 }

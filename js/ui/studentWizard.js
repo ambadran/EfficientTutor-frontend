@@ -1,9 +1,10 @@
 import { config, appState } from '../config.js';
 import { showModal, showInfoModal } from './modals.js';
 import { renderTimetableComponent, wizardTimetableHandlers } from './timetable.js';
+import { generateUUID } from '../utils.js'; // IMPORT the new function
 
+// ... (wizardStep1, wizardStep2, etc. are unchanged)
 function wizardStep1(data) {
-    // Now reads from top-level properties like data.firstName
     return `
         <div class="space-y-4">
             <input type="text" id="firstName" placeholder="First Name" value="${data.firstName || ''}" required class="w-full p-3 bg-gray-700 rounded-md border border-gray-600">
@@ -19,7 +20,6 @@ function wizardStep2(data) {
         const sharedWithNames = subject.sharedWith
             .map(studentId => {
                 const student = appState.students.find(s => s.id === studentId);
-                // Reads from student.firstName
                 return student ? student.firstName : '';
             })
             .filter(Boolean).join(', ');
@@ -79,7 +79,6 @@ function validateStep(step, data, modal) {
             showInfoModal('Validation Error', '<p>Please fill in all fields.</p>');
             return false;
         }
-        // Save as flat properties, not nested in basicInfo
         data.firstName = firstName;
         data.lastName = lastName;
         data.grade = grade;
@@ -89,14 +88,14 @@ function validateStep(step, data, modal) {
 
 export function showStudentRegistrationWizard(studentToEdit = null, onFinish) {
     let step = 1;
-    // The data object starts flat
     let registrationData = studentToEdit ? JSON.parse(JSON.stringify(studentToEdit)) : {
-        id: crypto.randomUUID(),
+        id: generateUUID(), // CHANGED: Use our new compatible function
         subjects: [],
         availability: {}
     };
 
     if (!studentToEdit) {
+        // ... (rest of the function is unchanged)
         const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
         config.daysOfWeek.forEach(day => {
             const dayKey = day.toLowerCase();
