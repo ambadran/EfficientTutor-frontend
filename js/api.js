@@ -42,7 +42,7 @@ export const deleteStudentRequest = (userId, studentId) => apiRequest('/students
 
 export const fetchTimetable = (studentId) => apiRequest(`/timetable?student_id=${studentId}`);
 
-export const fetchLogs = (studentId) => apiRequest(`/logs?student_id=${studentId}`);
+export const fetchLogs = (userId) => apiRequest(`/logs?userId=${userId}`);
 
 // --- NEW API FUNCTIONS ---
 

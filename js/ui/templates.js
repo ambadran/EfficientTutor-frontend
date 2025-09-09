@@ -99,11 +99,18 @@ export function renderStudentInfoPage() {
 }
 
 export async function renderLogsPage() {
-    if (!appState.currentStudent) return `<div class="text-center p-8 text-gray-400">Select a student to view logs.</div>`;
+    // UPDATED: Check for the logged-in user instead of a selected student
+    if (!appState.currentUser) {
+        return `<div class="text-center p-8 text-gray-400">You must be logged in to view logs.</div>`;
+    }
     
     try {
-        const logData = await fetchLogs(appState.currentStudent.id);
+        // UPDATED: Pass the parent's user ID to the fetchLogs function
+        const logData = await fetchLogs(appState.currentUser.id);
         const { summary, detailed_logs } = logData;
+
+        // NEW: Sort logs by date in descending order (most recent first)
+        detailed_logs.sort((a, b) => b.date.localeCompare(a.date));
         
         const logsHTML = detailed_logs.map(log => {
             const attendees = log.attendees || [];
@@ -128,8 +135,8 @@ export async function renderLogsPage() {
                     <h3 class="text-xl font-semibold mb-4">Summary</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-red-500">${summary.unpaid_count}</p><p class="text-gray-400">Lessons Unpaid</p></div>
-                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-500">${summary.paid_count}</p><p class="text-gray-400">Lessons Paid</p></div>
-                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">$${summary.total_due.toFixed(2)}</p><p class="text-gray-400">Total Amount Due</p></div>
+                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-blue-400">${summary.lessons_due}</p><p class="text-gray-400">Lessons Due</p></div>
+                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_due.toFixed(2)} kwd</p><p class="text-gray-400">Total Amount Due</p></div>
                     </div>
                 </div>
                 <div>
