@@ -1,6 +1,6 @@
 import { appState } from '../config.js';
 import { fetchLogs, fetchNotes, fetchMeetingLinks } from '../api.js';
-import { showModal, closeModal } from './modals.js';
+import { showModal, closeModal , showLoadingOverlay, hideStatusOverlay} from './modals.js';
 import { renderPage } from './navigation.js';
 
 // --- NEW: Sidebar Rendering ---
@@ -22,6 +22,16 @@ export function renderSidebar(role) {
             <a href="#" id="nav-notes" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-book-open w-6 mr-3"></i> Notes</a>
             <a href="#" id="nav-meeting-links" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-video w-6 mr-3"></i> Meeting Links</a>
             <a href="#" id="nav-settings" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-cog w-6 mr-3"></i> Settings</a>
+        `;
+    } else if (role === 'teacher') {
+        // NEW: Sidebar for the teacher role
+        navLinks = `
+            <a href="#" id="nav-teacher-tuition-logs" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-file-invoice-dollar w-6 mr-3"></i> Tuition Logs</a>
+            <a href="#" id="nav-teacher-payment-logs" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-money-check-alt w-6 mr-3"></i> Payment Logs</a>
+            <a href="#" id="nav-teacher-notes" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-book-open w-6 mr-3"></i> Notes</a>
+            <a href="#" id="nav-teacher-meeting-links" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-video w-6 mr-3"></i> Meeting Links</a>
+            <a href="#" id="nav-teacher-timetables" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-calendar-alt w-6 mr-3"></i> Timetables</a>
+            <a href="#" id="nav-teacher-student-info" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-users w-6 mr-3"></i> Student Info</a>
         `;
     }
 
@@ -99,30 +109,28 @@ export function renderStudentInfoPage() {
 }
 
 export async function renderLogsPage() {
-    // UPDATED: Check for the logged-in user instead of a selected student
     if (!appState.currentUser) {
         return `<div class="text-center p-8 text-gray-400">You must be logged in to view logs.</div>`;
     }
     
     try {
-        // UPDATED: Pass the parent's user ID to the fetchLogs function
         const logData = await fetchLogs(appState.currentUser.id);
         const { summary, detailed_logs } = logData;
 
-        // NEW: Sort logs by date in descending order (most recent first)
-        detailed_logs.sort((a, b) => b.date.localeCompare(a.date));
+        // Sort by date, most recent first
+        detailed_logs.sort((a, b) => new Date(b.date) - new Date(a.date));
         
         const logsHTML = detailed_logs.map(log => {
             const attendees = log.attendees || [];
             return `
-                <div class="bg-gray-800 p-4 rounded-lg grid grid-cols-3 md:grid-cols-4 gap-4 items-center">
+                <div class="bg-gray-800 p-4 rounded-lg grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
                     <div>
                         <p class="font-semibold">${log.subject}</p>
                         <p class="text-sm text-indigo-300">${attendees.join(', ')}</p>
                     </div>
                     <div class="text-sm text-gray-400 text-center">
                         <p>${log.date}</p>
-                        <p>${log.time_start} - ${log.time_end}</p>
+                        <p class="text-xs">${log.start_time} - ${log.end_time}</p>
                     </div>
                     <div class="text-center">${log.duration}</div>
                     <div class="text-center"><span class="px-3 py-1 rounded-full text-sm font-semibold ${log.status === 'Paid' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${log.status}</span></div>
@@ -135,7 +143,7 @@ export async function renderLogsPage() {
                     <h3 class="text-xl font-semibold mb-4">Summary</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-red-500">${summary.unpaid_count}</p><p class="text-gray-400">Lessons Unpaid</p></div>
-                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-blue-400">${summary.lessons_due}</p><p class="text-gray-400">Lessons Due</p></div>
+                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.credit_balance.toFixed(2)} kwd</p><p class="text-gray-400">Credit Balance</p></div>
                         <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_due.toFixed(2)} kwd</p><p class="text-gray-400">Total Amount Due</p></div>
                     </div>
                 </div>
@@ -245,4 +253,22 @@ export async function renderMeetingLinksPage() {
     } catch (error) {
         return `<div class="text-center text-red-400 p-8">Error loading meeting links: ${error.message}</div>`;
     }
+}
+
+// --- NEW: Teacher Page Placeholders ---
+
+export function renderTeacherPaymentLogsPage() {
+    return `<div class="p-8 text-center text-gray-400">The Payment Logs feature will be implemented here.</div>`;
+}
+export function renderTeacherNotesPage() {
+    return `<div class="p-8 text-center text-gray-400">The Notes feature will be implemented here.</div>`;
+}
+export function renderTeacherMeetingLinksPage() {
+    return `<div class="p-8 text-center text-gray-400">The Meeting Links feature will be implemented here.</div>`;
+}
+export function renderTeacherTimetablesPage() {
+    return `<div class="p-8 text-center text-gray-400">The Timetables feature will be implemented here.</div>`;
+}
+export function renderTeacherStudentInfoPage() {
+    return `<div class="p-8 text-center text-gray-400">The Student Info feature will be implemented here.</div>`;
 }

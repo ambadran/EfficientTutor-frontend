@@ -6,10 +6,16 @@ import {
     renderLogsPage, 
     renderSettingsPage,
     renderNotesPage,
-    renderMeetingLinksPage
+    renderMeetingLinksPage,
+    renderTeacherPaymentLogsPage,
+    renderTeacherNotesPage,
+    renderTeacherMeetingLinksPage,
+    renderTeacherTimetablesPage,
+    renderTeacherStudentInfoPage
 } from './templates.js';
 import { renderTimetablePage } from './timetable.js';
 import { displayGlobalError } from './layout.js';
+import { renderTeacherTuitionLogsPage } from './teacher.js';
 
 const pageContent = document.getElementById('page-content');
 const pageTitle = document.getElementById('page-title');
@@ -62,6 +68,33 @@ export async function renderPage() {
                 pageTitle.textContent = 'Meeting Links';
                 content = await renderMeetingLinksPage();
                 break;
+
+            // NEW: Teacher pages
+            case 'teacher-tuition-logs':
+                pageTitle.textContent = 'Tuition Logs';
+                content = await renderTeacherTuitionLogsPage(); // Use the new function
+                break; 
+            case 'teacher-payment-logs':
+                pageTitle.textContent = 'Payment Logs';
+                content = renderTeacherPaymentLogsPage();
+                break;
+            case 'teacher-notes':
+                pageTitle.textContent = 'Notes';
+                content = renderTeacherNotesPage();
+                break;
+            case 'teacher-meeting-links':
+                pageTitle.textContent = 'Meeting Links';
+                content = renderTeacherMeetingLinksPage();
+                break;
+            case 'teacher-timetables':
+                pageTitle.textContent = 'Timetables';
+                content = renderTeacherTimetablesPage();
+                break;
+            case 'teacher-student-info':
+                pageTitle.textContent = 'Student Info';
+                content = renderTeacherStudentInfoPage();
+                break;
+
             default:
                 pageTitle.textContent = 'Not Found';
                 content = '<p>Page not found.</p>';

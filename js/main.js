@@ -6,8 +6,8 @@ import { navigateTo, renderPage } from './ui/navigation.js';
 import { toggleSidebar, displayGlobalError } from './ui/layout.js';
 import { showStudentRegistrationWizard } from './ui/studentWizard.js';
 import { confirmDeleteStudent } from './ui/templates.js';
-// THIS LINE IS CORRECTED to include all necessary functions
 import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback, showModal } from './ui/modals.js';
+import { showAddTuitionLogModal, handleVoidLog} from './ui/teacher.js'; // We will create these functions
 
 // --- DATA HANDLERS ---
 async function handleSaveStudent(studentData) {
@@ -134,7 +134,31 @@ document.body.addEventListener('click', (e) => {
     if (closest('#logout-button')) handleLogout();
 
     if (closest('#add-new-student-btn')) showStudentRegistrationWizard(null, handleSaveStudent);
+
+    // --- NEW: Teacher Dashboard Listeners ---
+    if (closest('#add-new-log-btn')) {
+        showAddTuitionLogModal(); 
+    }
+
+    const voidBtn = closest('.void-log-btn');
+    if (voidBtn) {
+        handleVoidLog(voidBtn.dataset.logId);
+    }
     
+    const correctBtn = closest('.correct-log-btn');
+    if (correctBtn) {
+        const logId = correctBtn.dataset.logId;
+        // Find the full log object from the cached state
+        const logToCorrect = appState.teacherTuitionLogs?.find(log => log.id === logId);
+        if (logToCorrect) {
+            showAddTuitionLogModal(logToCorrect);
+        } else {
+            console.error("Could not find log to correct in state cache.");
+            showStatusMessage('error', 'Could not find log data. Please refresh.');
+        }
+    }
+    // ----
+
     const editStudentBtn = closest('.edit-student-btn');
     if (editStudentBtn) {
         const student = appState.students.find(s => s.id === editStudentBtn.dataset.id);

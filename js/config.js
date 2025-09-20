@@ -29,4 +29,5 @@ export let appState = {
     // Set Saturday as 0, Sunday as 1, etc.
     currentTimetableDay: new Date().getDay() + 1 > 6 ? 0 : new Date().getDay() + 1,
     isSidebarOpen: false,
+    teacherTuitionLogs: [], // NEW: Cache for the teacher's tuition log view
 };

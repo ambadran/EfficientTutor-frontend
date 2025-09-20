@@ -12,6 +12,7 @@ async function apiRequest(endpoint, options = {}) {
     return data;
 }
 
+// -- Authentication --
 export const checkBackendStatus = () => fetch(config.backendUrl);
 
 export const loginUser = (email, password) => apiRequest('/login', {
@@ -26,35 +27,47 @@ export const signupUser = (email, password) => apiRequest('/signup', {
     body: JSON.stringify({ email, password }),
 });
 
+// -- Parent & Student Data
 export const fetchStudents = (userId) => apiRequest(`/students?userId=${userId}`);
-
 export const postStudent = (userId, student) => apiRequest('/students', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId, student }),
 });
-
 export const deleteStudentRequest = (userId, studentId) => apiRequest('/students', {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId, studentId }),
 });
-
 export const fetchTimetable = (studentId) => apiRequest(`/timetable?student_id=${studentId}`);
-
-export const fetchLogs = (userId) => apiRequest(`/logs?userId=${userId}`);
-
-// --- NEW API FUNCTIONS ---
-
 export const fetchStudentCredentials = (parentId, studentId) => 
     apiRequest(`/student-credentials?userId=${parentId}&studentId=${studentId}`);
+export const fetchStudentProfile = (studentId) => 
+    apiRequest(`/student-profile?studentId=${studentId}`);
 
+// -- student specific stuff --
 export const fetchNotes = (studentId) => 
     apiRequest(`/notes?studentId=${studentId}`);
-
 export const fetchMeetingLinks = (studentId) => 
     apiRequest(`/meeting-links?studentId=${studentId}`);
 
-// --- NEW API FUNCTION ---
-export const fetchStudentProfile = (studentId) => 
-    apiRequest(`/student-profile?studentId=${studentId}`);
+// -- Parent specific stuff
+export const fetchLogs = (parentId) => apiRequest(`/financial-report/${parentId}`);
+
+// --- Teacher Financial System ---
+export const fetchTeacherTuitionLogs = () => apiRequest('/tuition-logs');
+export const fetchSchedulableTuitions = () => apiRequest('/schedulable-tuitions');
+export const fetchManualEntryData = () => apiRequest('/manual-entry-data');
+export const postTuitionLog = (logData) => apiRequest('/tuition-logs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(logData),
+});
+export const voidTuitionLog = (logId) => apiRequest(`/tuition-logs/${logId}/void`, { method: 'POST' });
+export const postTuitionLogCorrection = (logId, correctionData) => apiRequest(`/tuition-logs/${logId}/correction`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(correctionData),
+});
+
+

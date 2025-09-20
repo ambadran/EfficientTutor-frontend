@@ -27,6 +27,7 @@ export async function loadInitialData() {
             showAuthFeedback(error.message);
         }
     }
+  // No initial data is loaded for a teacher at this stage
 }
 
 export async function checkAuthState() {
@@ -48,9 +49,14 @@ export async function checkAuthState() {
             } else {
                 navigateTo('timetable');
             }
+
         } else if (user.role === 'student') {
             // Students are directed to their timetable by default
             navigateTo('timetable');
+
+        } else if (user.role === 'teacher') {
+            // Teachers are directed to the tuition logs page by default
+            navigateTo('teacher-tuition-logs');
         }
 
     } else {
