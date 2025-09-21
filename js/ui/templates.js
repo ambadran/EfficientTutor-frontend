@@ -117,8 +117,7 @@ export async function renderLogsPage() {
         const logData = await fetchLogs(appState.currentUser.id);
         const { summary, detailed_logs } = logData;
 
-        // Sort by date, most recent first
-        detailed_logs.sort((a, b) => new Date(b.date) - new Date(a.date));
+        // REMOVED: The client-side sorting line is now gone.
         
         const logsHTML = detailed_logs.map(log => {
             const attendees = log.attendees || [];

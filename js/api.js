@@ -55,7 +55,7 @@ export const fetchMeetingLinks = (studentId) =>
 export const fetchLogs = (parentId) => apiRequest(`/financial-report/${parentId}`);
 
 // --- Teacher Financial System ---
-export const fetchTeacherTuitionLogs = () => apiRequest('/tuition-logs');
+export const fetchTeacherTuitionLogs = (viewerId) => apiRequest(`/tuition-logs?viewer_id=${viewerId}`);
 export const fetchSchedulableTuitions = () => apiRequest('/schedulable-tuitions');
 export const fetchManualEntryData = () => apiRequest('/manual-entry-data');
 export const postTuitionLog = (logData) => apiRequest('/tuition-logs', {
