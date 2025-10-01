@@ -95,6 +95,11 @@ export async function renderPage() {
                 content = renderTeacherStudentInfoPage();
                 break;
 
+            case 'teacher-payment-logs':
+                pageTitle.textContent = 'Payment Logs';
+                content = await renderTeacherPaymentLogsPage(); // Use the new function
+                break;
+
             default:
                 pageTitle.textContent = 'Not Found';
                 content = '<p>Page not found.</p>';

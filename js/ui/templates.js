@@ -1,5 +1,5 @@
 import { appState } from '../config.js';
-import { fetchLogs, fetchNotes, fetchMeetingLinks } from '../api.js';
+import { fetchLogs, fetchNotes, fetchMeetingLinks, fetchFinancialSummary, fetchTuitionLogs } from '../api.js';
 import { showModal, closeModal , showLoadingOverlay, hideStatusOverlay} from './modals.js';
 import { renderPage } from './navigation.js';
 
@@ -114,11 +114,11 @@ export async function renderLogsPage() {
     }
     
     try {
-        const logData = await fetchLogs(appState.currentUser.id);
-        const { summary, detailed_logs } = logData;
+        const [summary, detailed_logs] = await Promise.all([
+            fetchFinancialSummary(appState.currentUser.id),
+            fetchTuitionLogs(appState.currentUser.id)
+        ]);
 
-        // REMOVED: The client-side sorting line is now gone.
-        
         const logsHTML = detailed_logs.map(log => {
             const attendees = log.attendees || [];
             return `
@@ -136,14 +136,15 @@ export async function renderLogsPage() {
                 </div>`;
         }).join('');
 
+        // Make sure this string starts with a backtick `
         return `
             <div class="space-y-6">
                 <div>
                     <h3 class="text-xl font-semibold mb-4">Summary</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-red-500">${summary.unpaid_count}</p><p class="text-gray-400">Lessons Unpaid</p></div>
-                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.credit_balance.toFixed(2)} kwd</p><p class="text-gray-400">Credit Balance</p></div>
-                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_due.toFixed(2)} kwd</p><p class="text-gray-400">Total Amount Due</p></div>
+                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.credit_balance} kwd</p><p class="text-gray-400">Credit Balance</p></div>
+                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_due} kwd</p><p class="text-gray-400">Total Amount Due</p></div>
                     </div>
                 </div>
                 <div>
@@ -151,6 +152,7 @@ export async function renderLogsPage() {
                     <div class="space-y-2">${logsHTML}</div>
                 </div>
             </div>`;
+        // Make sure this string ends with a backtick `
     } catch (error) {
         console.error("Error fetching logs:", error);
         return `<div class="text-center text-red-400 p-8">Error loading logs: ${error.message}</div>`;

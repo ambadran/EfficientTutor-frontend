@@ -55,6 +55,15 @@ export const fetchMeetingLinks = (studentId) =>
 export const fetchLogs = (parentId) => apiRequest(`/financial-report/${parentId}`);
 
 // --- Teacher Financial System ---
+
+// --- Unified Financial Logs & Summary ---
+
+export const fetchTuitionLogs = (viewerId) => apiRequest(`/tuition-logs?viewer_id=${viewerId}`);
+export const fetchPaymentLogs = (viewerId) => apiRequest(`/payment-logs?viewer_id=${viewerId}`);
+
+// NEW: Endpoint for the financial summary
+export const fetchFinancialSummary = (viewerId) => apiRequest(`/financial-summary?viewer_id=${viewerId}`);
+
 export const fetchTeacherTuitionLogs = (viewerId) => apiRequest(`/tuition-logs?viewer_id=${viewerId}`);
 export const fetchSchedulableTuitions = () => apiRequest('/schedulable-tuitions');
 export const fetchManualEntryData = () => apiRequest('/manual-entry-data');

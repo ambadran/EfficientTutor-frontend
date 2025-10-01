@@ -1,5 +1,5 @@
 import { appState, config } from '../config.js';
-import { fetchTeacherTuitionLogs, fetchSchedulableTuitions, fetchManualEntryData, postTuitionLog, postTuitionLogCorrection, voidTuitionLog } from '../api.js';
+import { fetchTuitionLogs, fetchFinancialSummary, fetchSchedulableTuitions, fetchManualEntryData, postTuitionLog, postTuitionLogCorrection, voidTuitionLog, fetchPaymentLogs } from '../api.js';
 import { showModal, closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay } from './modals.js';
 import { renderPage } from './navigation.js';
 
@@ -81,8 +81,12 @@ function renderTuitionLogsTable(logs) {
  */
 export async function renderTeacherTuitionLogsPage() {
     try {
-        const logs = await fetchTeacherTuitionLogs(appState.currentUser.id);
-        appState.teacherTuitionLogs = logs; // Cache the logs for correction feature
+        const [summary, logs] = await Promise.all([
+            fetchFinancialSummary(appState.currentUser.id),
+            fetchTuitionLogs(appState.currentUser.id)
+        ]);
+
+        appState.teacherTuitionLogs = logs;
         const tableHTML = renderTuitionLogsTable(logs);
         
         return `
@@ -93,6 +97,25 @@ export async function renderTeacherTuitionLogsPage() {
                         <i class="fas fa-plus mr-2"></i> Add New Log
                     </button>
                 </div>
+
+                <div>
+                    <h3 class="text-xl font-semibold mb-4">Summary</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-gray-800 p-4 rounded-lg text-center">
+                            <p class="text-3xl font-bold text-blue-400">${summary.total_lessons_given_this_month}</p>
+                            <p class="text-gray-400">Lessons This Month</p>
+                        </div>
+                        <div class="bg-gray-800 p-4 rounded-lg text-center">
+                            <p class="text-3xl font-bold text-green-400">${summary.total_credit_held} kwd</p>
+                            <p class="text-gray-400">Total Credit Held</p>
+                        </div>
+                        <div class="bg-gray-800 p-4 rounded-lg text-center">
+                            <p class="text-3xl font-bold text-yellow-400">${summary.total_owed_to_teacher} kwd</p>
+                            <p class="text-gray-400">Total Owed to You</p>
+                        </div>
+                    </div>
+                </div>
+
                 ${tableHTML}
             </div>
         `;
@@ -101,7 +124,6 @@ export async function renderTeacherTuitionLogsPage() {
         return `<div class="text-center text-red-400 p-8">Error loading tuition logs: ${error.message}</div>`;
     }
 }
-
 /**
  * Handles the logic for voiding a tuition log with confirmation.
  */
@@ -205,3 +227,79 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
     }
 }
 
+
+// --- NEW: Payment Logs Rendering ---
+
+/**
+ * Renders the main table of payment logs.
+ */
+function renderPaymentLogsTable(logs) {
+    if (logs.length === 0) {
+        return `<div class="text-center p-8 text-gray-400">No payment logs found.</div>`;
+    }
+
+    logs.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
+
+    const logsHTML = logs.map(log => {
+        const isVoid = log.status === 'VOID';
+        const rowClass = isVoid ? 'opacity-50 bg-gray-800/50' : 'bg-gray-800';
+        return `
+            <tr class="${rowClass}">
+                <td class="p-3">${new Date(log.payment_date).toLocaleDateString()}</td>
+                <td class="p-3">${log.parent_name}</td>
+                <td class="p-3">${log.amount_paid.toFixed(2)} ${log.currency}</td>
+                <td class="p-3 text-gray-400 italic">${log.notes || '–'}</td>
+                <td class="p-3"><span class="px-2 py-1 text-xs rounded-full ${isVoid ? 'bg-red-500/30 text-red-300' : 'bg-green-500/30 text-green-300'}">${log.status}</span></td>
+                <td class="p-3">
+                    <div class="flex items-center space-x-2">
+                        <button title="Correct Log" class="p-2 text-sm bg-yellow-600 hover:bg-yellow-500 rounded-md ${isVoid ? 'hidden' : ''}" disabled><i class="fas fa-edit"></i></button>
+                        <button title="Void Log" class="p-2 text-sm bg-red-600 hover:bg-red-500 rounded-md ${isVoid ? 'hidden' : ''}" disabled><i class="fas fa-ban"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    return `
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-900/80">
+                    <tr>
+                        <th class="p-3">Date</th>
+                        <th class="p-3">Parent</th>
+                        <th class="p-3">Amount Paid</th>
+                        <th class="p-3">Notes</th>
+                        <th class="p-3">Status</th>
+                        <th class="p-3">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>${logsHTML}</tbody>
+            </table>
+        </div>
+    `;
+}
+
+/**
+ * Main function to render the Teacher Payment Logs page.
+ */
+export async function renderTeacherPaymentLogsPage() {
+    try {
+        const logs = await fetchPaymentLogs(appState.currentUser.id);
+        const tableHTML = renderPaymentLogsTable(logs);
+        
+        return `
+            <div class="space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold">Payment Logs</h2>
+                    <button id="add-new-payment-log-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition duration-300" disabled>
+                        <i class="fas fa-plus mr-2"></i> Add Payment
+                    </button>
+                </div>
+                ${tableHTML}
+            </div>
+        `;
+    } catch (error) {
+        console.error("Error rendering payment logs page:", error);
+        return `<div class="text-center text-red-400 p-8">Error loading payment logs: ${error.message}</div>`;
+    }
+}
