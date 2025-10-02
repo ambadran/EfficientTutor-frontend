@@ -120,7 +120,17 @@ export async function renderLogsPage() {
         ]);
 
         const logsHTML = detailed_logs.map(log => {
-            const attendees = log.attendees || [];
+            const attendees = log.attendee_names || [];
+
+            const formatTime = (timeStr) => {
+                if (!timeStr) return '';
+                return new Date(timeStr).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+            };
+
             return `
                 <div class="bg-gray-800 p-4 rounded-lg grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
                     <div>
@@ -128,15 +138,14 @@ export async function renderLogsPage() {
                         <p class="text-sm text-indigo-300">${attendees.join(', ')}</p>
                     </div>
                     <div class="text-sm text-gray-400 text-center">
-                        <p>${log.date}</p>
-                        <p class="text-xs">${log.start_time} - ${log.end_time}</p>
+                        <p>${new Date(log.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                        <p class="text-xs">${formatTime(log.start_time)} - ${formatTime(log.end_time)}</p>
                     </div>
                     <div class="text-center">${log.duration}</div>
-                    <div class="text-center"><span class="px-3 py-1 rounded-full text-sm font-semibold ${log.status === 'Paid' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${log.status}</span></div>
+                    <div class="text-center"><span class="px-3 py-1 rounded-full text-sm font-semibold ${log.paid_status === 'Paid' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${log.paid_status}</span></div>
                 </div>`;
         }).join('');
 
-        // Make sure this string starts with a backtick `
         return `
             <div class="space-y-6">
                 <div>
@@ -152,7 +161,6 @@ export async function renderLogsPage() {
                     <div class="space-y-2">${logsHTML}</div>
                 </div>
             </div>`;
-        // Make sure this string ends with a backtick `
     } catch (error) {
         console.error("Error fetching logs:", error);
         return `<div class="text-center text-red-400 p-8">Error loading logs: ${error.message}</div>`;

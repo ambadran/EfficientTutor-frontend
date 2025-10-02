@@ -7,7 +7,7 @@ import { toggleSidebar, displayGlobalError } from './ui/layout.js';
 import { showStudentRegistrationWizard } from './ui/studentWizard.js';
 import { confirmDeleteStudent } from './ui/templates.js';
 import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback, showModal } from './ui/modals.js';
-import { showAddTuitionLogModal, handleVoidLog} from './ui/teacher.js'; // We will create these functions
+import { showAddTuitionLogModal, handleVoidLog, showAddPaymentLogModal, handleVoidPaymentLog } from './ui/teacher.js';
 
 // --- DATA HANDLERS ---
 async function handleSaveStudent(studentData) {
@@ -157,8 +157,24 @@ document.body.addEventListener('click', (e) => {
             showStatusMessage('error', 'Could not find log data. Please refresh.');
         }
     }
-    // ----
+    // ---------------------------------------------------
 
+    // NEW: Payment Logs
+    if (closest('#add-new-payment-log-btn')) {
+        showAddPaymentLogModal();
+    }
+    const voidPaymentBtn = closest('.void-payment-log-btn');
+    if (voidPaymentBtn) {
+        handleVoidPaymentLog(voidPaymentBtn.dataset.logId);
+    }
+    const correctPaymentBtn = closest('.correct-payment-log-btn');
+    if (correctPaymentBtn) {
+        const logId = correctPaymentBtn.dataset.logId;
+        const logToCorrect = appState.teacherPaymentLogs?.find(log => log.id === logId);
+        if (logToCorrect) { showAddPaymentLogModal(logToCorrect); }
+    }
+    // ---------------------------------------------------
+  
     const editStudentBtn = closest('.edit-student-btn');
     if (editStudentBtn) {
         const student = appState.students.find(s => s.id === editStudentBtn.dataset.id);

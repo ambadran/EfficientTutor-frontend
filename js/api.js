@@ -65,8 +65,13 @@ export const fetchPaymentLogs = (viewerId) => apiRequest(`/payment-logs?viewer_i
 export const fetchFinancialSummary = (viewerId) => apiRequest(`/financial-summary?viewer_id=${viewerId}`);
 
 export const fetchTeacherTuitionLogs = (viewerId) => apiRequest(`/tuition-logs?viewer_id=${viewerId}`);
-export const fetchSchedulableTuitions = () => apiRequest('/schedulable-tuitions');
-export const fetchManualEntryData = () => apiRequest('/manual-entry-data');
+
+// UPDATED: Now requires viewer_id
+export const fetchSchedulableTuitions = (viewerId) => apiRequest(`/schedulable-tuitions?viewer_id=${viewerId}`);
+
+// UPDATED: Now requires viewer_id
+export const fetchManualEntryData = (viewerId) => apiRequest(`/manual-entry-data?viewer_id=${viewerId}`);
+
 export const postTuitionLog = (logData) => apiRequest('/tuition-logs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -79,4 +84,19 @@ export const postTuitionLogCorrection = (logId, correctionData) => apiRequest(`/
     body: JSON.stringify(correctionData),
 });
 
+// --- NEW: Payment Log API Functions ---
+export const fetchParentList = (viewerId) => apiRequest(`/parent-list?viewer_id=${viewerId}`);
 
+export const postPaymentLog = (logData) => apiRequest('/payment-logs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(logData),
+});
+
+export const voidPaymentLog = (logId) => apiRequest(`/payment-logs/${logId}/void`, { method: 'POST' });
+
+export const postPaymentLogCorrection = (logId, correctionData) => apiRequest(`/payment-logs/${logId}/correction`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(correctionData),
+});

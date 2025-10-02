@@ -7,7 +7,6 @@ import {
     renderSettingsPage,
     renderNotesPage,
     renderMeetingLinksPage,
-    renderTeacherPaymentLogsPage,
     renderTeacherNotesPage,
     renderTeacherMeetingLinksPage,
     renderTeacherTimetablesPage,
@@ -15,7 +14,7 @@ import {
 } from './templates.js';
 import { renderTimetablePage } from './timetable.js';
 import { displayGlobalError } from './layout.js';
-import { renderTeacherTuitionLogsPage } from './teacher.js';
+import { renderTeacherTuitionLogsPage, renderTeacherPaymentLogsPage } from './teacher.js';
 
 const pageContent = document.getElementById('page-content');
 const pageTitle = document.getElementById('page-title');
@@ -76,7 +75,7 @@ export async function renderPage() {
                 break; 
             case 'teacher-payment-logs':
                 pageTitle.textContent = 'Payment Logs';
-                content = renderTeacherPaymentLogsPage();
+                content = await renderTeacherPaymentLogsPage();
                 break;
             case 'teacher-notes':
                 pageTitle.textContent = 'Notes';
