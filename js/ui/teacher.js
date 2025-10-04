@@ -3,7 +3,7 @@ import {
     fetchTuitionLogs, 
     fetchFinancialSummary, 
     fetchSchedulableTuitions, 
-    fetchManualEntryData, 
+    fetchCustomLogEntryData, 
     postTuitionLog, 
     postTuitionLogCorrection, 
     voidTuitionLog, 
@@ -197,18 +197,29 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
     // --- Helper function for the final step (entering time) ---
     const _renderFinalStep = () => {
         const now = new Date();
-        // Use a full ISO string for the Date object, then slice for the input
         const startTimeDefault = logToCorrect?.start_time || logData.scheduled_start_time || now.toISOString();
         const endTimeDefault = logToCorrect?.end_time || logData.scheduled_end_time || new Date(now.getTime() + 60 * 60 * 1000).toISOString();
         
         const startTimeValue = new Date(startTimeDefault).toISOString().slice(0, 16);
         const endTimeValue = new Date(endTimeDefault).toISOString().slice(0, 16);
 
+        // For custom logs, show the student names and their costs
+        let customDetailsHTML = '';
+        if (logData.log_type === 'custom') {
+            const studentCosts = logData.charges.map(c => {
+                const student = logData.all_students.find(s => s.id === c.student_id);
+                return `${student.first_name} (${c.cost} kwd)`;
+            }).join(', ');
+            customDetailsHTML = `<div><p class="text-sm text-gray-400">Attendees: <span class="font-semibold text-gray-200">${studentCosts}</span></p></div>`;
+        } else {
+            customDetailsHTML = `<div><p class="text-sm text-gray-400">Attendees: <span class="font-semibold text-gray-200">${logData.student_names.join(', ')}</span></p></div>`;
+        }
+
         const body = `
             <div class="space-y-4">
                 <div><p class="text-sm text-gray-400">Subject: <span class="font-semibold text-gray-200">${logData.subject}</span></p></div>
-                <div><p class="text-sm text-gray-400">Attendees: <span class="font-semibold text-gray-200">${logData.student_names.join(', ')}</span></p></div>
-                ${logData.log_type === 'custom' ? `<div><label class="text-sm text-gray-400">Cost</label><input type="number" id="log-cost" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${logToCorrect?.cost || logData.cost || ''}" step="0.5"></div>` : ''}
+                ${customDetailsHTML}
+                ${logData.log_type === 'custom' ? `<div><label class="text-sm text-gray-400">Lesson Index</label><input type="number" id="log-lesson-index" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${logToCorrect?.lesson_index || 1}" min="1"></div>` : ''}
                 <div class="grid grid-cols-2 gap-4">
                     <div><label class="text-sm text-gray-400">Start Time</label><input type="datetime-local" id="log-start-time" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${startTimeValue}"></div>
                     <div><label class="text-sm text-gray-400">End Time</label><input type="datetime-local" id="log-end-time" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${endTimeValue}"></div>
@@ -218,19 +229,26 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
         
         showModal(isCorrection ? 'Correct Tuition Log' : 'Add Tuition Log', body, footer, (modal) => {
             modal.querySelector('#submit-log-btn').addEventListener('click', async () => {
-                const finalLogData = {
-                    log_type: logData.log_type,
-                    start_time: new Date(modal.querySelector('#log-start-time').value).toISOString(),
-                    end_time: new Date(modal.querySelector('#log-end-time').value).toISOString(),
-                };
+                let finalLogData = {};
 
-                // Add specific fields based on log type
-                if (finalLogData.log_type === 'custom') {
-                    finalLogData.cost = parseFloat(modal.querySelector('#log-cost').value);
-                    finalLogData.student_ids = logData.student_ids;
-                    finalLogData.subject = logData.subject;
-                } else { // 'scheduled'
-                    finalLogData.tuition_id = logData.tuition_id;
+                // --- UPDATED: Build the correct JSON for each log type ---
+                if (logData.log_type === 'scheduled') {
+                    finalLogData = {
+                        log_type: "scheduled",
+                        tuition_id: logData.tuition_id,
+                        start_time: new Date(modal.querySelector('#log-start-time').value).toISOString(),
+                        end_time: new Date(modal.querySelector('#log-end-time').value).toISOString()
+                    };
+                } else { // custom
+                    finalLogData = {
+                        log_type: "custom",
+                        teacher_id: appState.currentUser.id,
+                        subject: logData.subject,
+                        lesson_index: parseInt(modal.querySelector('#log-lesson-index').value),
+                        start_time: new Date(modal.querySelector('#log-start-time').value).toISOString(),
+                        end_time: new Date(modal.querySelector('#log-end-time').value).toISOString(),
+                        charges: logData.charges
+                    };
                 }
 
                 showLoadingOverlay('Saving log...');
@@ -308,36 +326,70 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
         }
     };
 
-    // --- Helper function for Step 2: Custom Form ---
+    // --- UPDATED Helper function for Step 2: Custom Form ---
     const _renderCustomForm = async () => {
         showLoadingOverlay('Fetching data...');
         try {
-            const data = await fetchManualEntryData(appState.currentUser.id);
+            const data = await fetchCustomLogEntryData(appState.currentUser.id);
             hideStatusOverlay();
 
-            const studentsHTML = data.students.map(s => `<label class="flex items-center space-x-2"><input type="checkbox" class="student-checkbox" value="${s.id}"><span>${s.first_name} ${s.last_name}</span></label>`).join('');
+            // UPDATED: UI now includes a cost input for each student
+            const studentsHTML = data.students.map(s => `
+                <label class="flex items-center justify-between p-2 hover:bg-gray-600 rounded-md">
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" class="student-checkbox" data-student-id="${s.id}" data-student-name="${s.first_name}">
+                        <span>${s.first_name} ${s.last_name}</span>
+                    </div>
+                    <div class="w-24">
+                        <input type="number" class="student-cost-input w-full p-1 bg-gray-800 rounded-md border border-gray-500 text-sm hidden" placeholder="Cost" step="0.5">
+                    </div>
+                </label>`).join('');
+
             const subjectsHTML = data.subjects.map(sub => `<option value="${sub}">${sub}</option>`).join('');
             const body = `
                 <div class="space-y-4">
-                    <div><label class="text-sm text-gray-400">Select Students</label><div class="max-h-40 overflow-y-auto space-y-1 mt-1 border border-gray-600 p-2 rounded-md">${studentsHTML}</div></div>
+                    <div><label class="text-sm text-gray-400">Select Students & Set Cost</label><div class="max-h-40 overflow-y-auto space-y-1 mt-1 border border-gray-600 p-2 rounded-md">${studentsHTML}</div></div>
                     <div><label class="text-sm text-gray-400">Select Subject</label><select id="custom-subject" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600">${subjectsHTML}</select></div>
                 </div>`;
             const footer = `<div class="flex justify-end"><button id="next-custom-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Next</button></div>`;
+            
             showModal('Add Custom Log', body, footer, (modal) => {
+                // Show/hide cost input when a student is checked
+                modal.querySelectorAll('.student-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', (e) => {
+                        const costInput = e.target.closest('label').querySelector('.student-cost-input');
+                        costInput.classList.toggle('hidden', !e.target.checked);
+                    });
+                });
+
                 modal.querySelector('#next-custom-btn').addEventListener('click', () => {
-                    const selectedStudentIds = Array.from(modal.querySelectorAll('.student-checkbox:checked')).map(cb => cb.value);
-                    if (selectedStudentIds.length === 0) {
-                        alert('Please select at least one student.');
+                    const charges = [];
+                    const selectedStudentNames = [];
+                    modal.querySelectorAll('.student-checkbox:checked').forEach(checkbox => {
+                        const costInput = checkbox.closest('label').querySelector('.student-cost-input');
+                        const cost = parseFloat(costInput.value);
+                        if (isNaN(cost) || cost <= 0) {
+                            alert(`Please enter a valid cost for ${checkbox.dataset.studentName}.`);
+                            charges.length = 0; // Invalidate charges
+                            return;
+                        }
+                        charges.push({
+                            student_id: checkbox.dataset.studentId,
+                            cost: cost
+                        });
+                        selectedStudentNames.push(checkbox.dataset.studentName);
+                    });
+
+                    if (charges.length === 0) {
+                        alert('Please select at least one student and enter their cost.');
                         return;
                     }
-                    const selectedStudentNames = selectedStudentIds.map(id => {
-                        const student = data.students.find(s => s.id === id);
-                        return student.first_name;
-                    });
+
                     logData = {
                         log_type: 'custom',
-                        student_ids: selectedStudentIds,
+                        charges: charges,
                         student_names: selectedStudentNames,
+                        all_students: data.students, // Pass full student list for final display
                         subject: modal.querySelector('#custom-subject').value,
                     };
                     _renderFinalStep();
@@ -357,6 +409,7 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
             subject: logToCorrect.subject,
             student_names: logToCorrect.attendee_names,
             cost: logToCorrect.cost
+            tuition_id: logToCorrect.tuition_id
             // We pass the full logToCorrect object to pre-fill times later
         };
         _renderFinalStep();

@@ -70,7 +70,7 @@ export const fetchTeacherTuitionLogs = (viewerId) => apiRequest(`/tuition-logs?v
 export const fetchSchedulableTuitions = (viewerId) => apiRequest(`/schedulable-tuitions?viewer_id=${viewerId}`);
 
 // UPDATED: Now requires viewer_id
-export const fetchManualEntryData = (viewerId) => apiRequest(`/manual-entry-data?viewer_id=${viewerId}`);
+export const fetchCustomLogEntryData = (viewerId) => apiRequest(`/custom-log-entry-data?viewer_id=${viewerId}`);
 
 export const postTuitionLog = (logData) => apiRequest('/tuition-logs', {
     method: 'POST',
