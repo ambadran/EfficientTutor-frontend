@@ -408,7 +408,7 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
             log_type: logToCorrect.create_type.toLowerCase(),
             subject: logToCorrect.subject,
             student_names: logToCorrect.attendee_names,
-            cost: logToCorrect.cost
+            cost: logToCorrect.cost,
             tuition_id: logToCorrect.tuition_id
             // We pass the full logToCorrect object to pre-fill times later
         };
