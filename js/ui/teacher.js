@@ -52,7 +52,7 @@ function formatTime(gmtString) {
 }
 
 /**
- * Renders the main table of tuition logs with the new column format.
+ * Renders the main table of tuition logs with the new cost display.
  */
 function renderTuitionLogsTable(logs) {
     if (logs.length === 0) {
@@ -72,7 +72,14 @@ function renderTuitionLogsTable(logs) {
                 <td class="p-3">${formatTime(log.end_time)}</td>
                 <td class="p-3">${log.subject}</td>
                 <td class="p-3">${log.attendee_names.join(', ')}</td>
-                <td class="p-3">${log.cost} kwd</td>
+                <td class="p-3">
+                    <div class="flex items-center justify-between">
+                        <span>${log.total_cost} kwd</span>
+                        <button title="View Charge Details" class="view-charges-btn text-blue-400 hover:text-blue-300" data-log-id="${log.id}">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                    </div>
+                </td>
                 <td class="p-3">
                     <span class="px-2 py-1 text-xs rounded-full ${log.paid_status === 'Paid' ? 'bg-green-500/30 text-green-300' : 'bg-red-500/30 text-red-300'}">
                         ${log.paid_status}
@@ -105,7 +112,7 @@ function renderTuitionLogsTable(logs) {
                         <th class="p-3">End Time</th>
                         <th class="p-3">Subject</th>
                         <th class="p-3">Attendees</th>
-                        <th class="p-3">Cost</th>
+                        <th class="p-3">Total Cost</th>
                         <th class="p-3">Paid Status</th>
                         <th class="p-3">Log Status</th>
                         <th class="p-3">Type</th>
@@ -188,6 +195,28 @@ export function handleVoidLog(logId) {
 }
 
 /**
+ * NEW: Displays a modal with the cost breakdown for a log.
+ */
+export function showChargesDetail(logId) {
+    const log = appState.teacherTuitionLogs?.find(l => l.id === logId);
+    if (!log || !log.charges) {
+        showStatusMessage('error', 'Charge details not available.');
+        return;
+    }
+
+    const chargesHTML = log.charges.map(charge => `
+        <li class="flex justify-between items-center p-2 bg-gray-700 rounded-md">
+            <span>${charge.student_name}</span>
+            <span class="font-semibold">${charge.cost} kwd</span>
+        </li>
+    `).join('');
+
+    const body = `<ul class="space-y-2">${chargesHTML}</ul>`;
+    const footer = `<div class="flex justify-end"><button id="modal-close-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Close</button></div>`;
+    showModal('Cost Breakdown', body, footer);
+}
+
+/**
  * Orchestrates the multi-step modal for adding or correcting a log.
  */
 export async function showAddTuitionLogModal(logToCorrect = null) {
@@ -207,8 +236,7 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
         let customDetailsHTML = '';
         if (logData.log_type === 'custom') {
             const studentCosts = logData.charges.map(c => {
-                const student = logData.all_students.find(s => s.id === c.student_id);
-                return `${student.first_name} (${c.cost} kwd)`;
+                return `${c.student_name} (${c.cost} kwd)`;
             }).join(', ');
             customDetailsHTML = `<div><p class="text-sm text-gray-400">Attendees: <span class="font-semibold text-gray-200">${studentCosts}</span></p></div>`;
         } else {
@@ -409,9 +437,20 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
             subject: logToCorrect.subject,
             student_names: logToCorrect.attendee_names,
             cost: logToCorrect.cost,
-            tuition_id: logToCorrect.tuition_id
-            // We pass the full logToCorrect object to pre-fill times later
+            tuition_id: logToCorrect.tuition_id,
+            charges: logToCorrect.charges // This was the missing piece
         };
+
+        // For custom logs, we need the full student list to properly display the final step
+        if (logData.log_type === 'custom') {
+            try {
+                const data = await fetchCustomLogEntryData(appState.currentUser.id);
+                logData.all_students = data.students;
+            } catch(e) {
+                showStatusMessage('error', 'Could not load data for correction.');
+                return;
+            }
+        }
         _renderFinalStep();
     } else {
         // If adding a new log, show the initial choice

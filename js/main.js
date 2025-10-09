@@ -7,7 +7,7 @@ import { toggleSidebar, displayGlobalError } from './ui/layout.js';
 import { showStudentRegistrationWizard } from './ui/studentWizard.js';
 import { confirmDeleteStudent } from './ui/templates.js';
 import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback, showModal } from './ui/modals.js';
-import { showAddTuitionLogModal, handleVoidLog, showAddPaymentLogModal, handleVoidPaymentLog } from './ui/teacher.js';
+import { showAddTuitionLogModal, handleVoidLog, showChargesDetail, showAddPaymentLogModal, handleVoidPaymentLog } from './ui/teacher.js';
 
 // --- DATA HANDLERS ---
 async function handleSaveStudent(studentData) {
@@ -135,7 +135,8 @@ document.body.addEventListener('click', (e) => {
 
     if (closest('#add-new-student-btn')) showStudentRegistrationWizard(null, handleSaveStudent);
 
-    // --- NEW: Teacher Dashboard Listeners ---
+    // --- Teacher Dashboard Listeners ---
+    // Tuition Logs
     if (closest('#add-new-log-btn')) {
         showAddTuitionLogModal(); 
     }
@@ -156,6 +157,11 @@ document.body.addEventListener('click', (e) => {
             console.error("Could not find log to correct in state cache.");
             showStatusMessage('error', 'Could not find log data. Please refresh.');
         }
+    }
+    // NEW: Listener for the charge details button
+    const chargesBtn = closest('.view-charges-btn');
+    if (chargesBtn) {
+        showChargesDetail(chargesBtn.dataset.logId);
     }
     // ---------------------------------------------------
 

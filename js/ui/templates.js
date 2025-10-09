@@ -119,20 +119,20 @@ export async function renderLogsPage() {
             fetchTuitionLogs(appState.currentUser.id)
         ]);
 
+        // Helper function to format just the time part, moved outside the loop for efficiency
+        const formatTime = (timeStr) => {
+            if (!timeStr) return '';
+            return new Date(timeStr).toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+        };
+
         const logsHTML = detailed_logs.map(log => {
             const attendees = log.attendee_names || [];
-
-            const formatTime = (timeStr) => {
-                if (!timeStr) return '';
-                return new Date(timeStr).toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: true
-                });
-            };
-
             return `
-                <div class="bg-gray-800 p-4 rounded-lg grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
+                <div class="bg-gray-800 p-4 rounded-lg grid grid-cols-2 md:grid-cols-5 gap-4 items-center">
                     <div>
                         <p class="font-semibold">${log.subject}</p>
                         <p class="text-sm text-indigo-300">${attendees.join(', ')}</p>
@@ -142,7 +142,12 @@ export async function renderLogsPage() {
                         <p class="text-xs">${formatTime(log.start_time)} - ${formatTime(log.end_time)}</p>
                     </div>
                     <div class="text-center">${log.duration}</div>
-                    <div class="text-center"><span class="px-3 py-1 rounded-full text-sm font-semibold ${log.paid_status === 'Paid' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${log.paid_status}</span></div>
+                    <div class="text-center font-semibold">${log.cost} kwd</div>
+                    <div class="text-center">
+                        <span class="px-3 py-1 rounded-full text-sm font-semibold ${log.paid_status === 'Paid' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">
+                            ${log.paid_status}
+                        </span>
+                    </div>
                 </div>`;
         }).join('');
 
