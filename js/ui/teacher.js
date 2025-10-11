@@ -70,6 +70,7 @@ function renderTuitionLogsTable(logs) {
                 <td class="p-3">${formatDate(log.start_time)}</td>
                 <td class="p-3">${formatTime(log.start_time)}</td>
                 <td class="p-3">${formatTime(log.end_time)}</td>
+                <td class="p-3 text-center">${log.duration}</td>
                 <td class="p-3">${log.subject}</td>
                 <td class="p-3">${log.attendee_names.join(', ')}</td>
                 <td class="p-3">
@@ -103,26 +104,26 @@ function renderTuitionLogsTable(logs) {
 
     return `
         <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm whitespace-nowrap">
-                <thead class="bg-gray-900/80">
-                    <tr>
-                        <th class="p-3 text-center">Week #</th>
-                        <th class="p-3">Date</th>
-                        <th class="p-3">Start Time</th>
-                        <th class="p-3">End Time</th>
-                        <th class="p-3">Subject</th>
-                        <th class="p-3">Attendees</th>
-                        <th class="p-3">Total Cost</th>
-                        <th class="p-3">Paid Status</th>
-                        <th class="p-3">Log Status</th>
-                        <th class="p-3">Type</th>
-                        <th class="p-3">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>${logsHTML}</tbody>
-            </table>
-        </div>
-    `;
+          <table class="w-full text-left text-sm whitespace-nowrap">
+            <thead class="bg-gray-900/80">
+              <tr>
+                <th class="p-3 text-center">Week #</th>
+                <th class="p-3">Date</th>
+                <th class="p-3">Start Time</th>
+                <th class="p-3">End Time</th>
+                <th class="p-3 text-center">Duration</th>
+                <th class="p-3">Subject</th>
+                <th class="p-3">Attendees</th>
+                <th class="p-3">Total Cost</th>
+                <th class="p-3">Paid Status</th>
+                <th class="p-3">Log Status</th>
+                <th class="p-3">Type</th>
+                <th class="p-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody>${logsHTML}</tbody>
+        </table>
+      </div>`;
 }
 
 /**
@@ -228,21 +229,18 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
         const now = new Date();
         const startTimeDefault = logToCorrect?.start_time || logData.scheduled_start_time || now.toISOString();
         const endTimeDefault = logToCorrect?.end_time || logData.scheduled_end_time || new Date(now.getTime() + 60 * 60 * 1000).toISOString();
-        
         const startTimeValue = new Date(startTimeDefault).toISOString().slice(0, 16);
         const endTimeValue = new Date(endTimeDefault).toISOString().slice(0, 16);
-
-        // For custom logs, show the student names and their costs
         let customDetailsHTML = '';
         if (logData.log_type === 'custom') {
             const studentCosts = logData.charges.map(c => {
-                return `${c.student_name} (${c.cost} kwd)`;
+                const name = c.student_name || logData.all_students.find(s => s.id === c.student_id).first_name;
+                return `${name} (${c.cost} kwd)`;
             }).join(', ');
             customDetailsHTML = `<div><p class="text-sm text-gray-400">Attendees: <span class="font-semibold text-gray-200">${studentCosts}</span></p></div>`;
         } else {
             customDetailsHTML = `<div><p class="text-sm text-gray-400">Attendees: <span class="font-semibold text-gray-200">${logData.student_names.join(', ')}</span></p></div>`;
         }
-
         const body = `
             <div class="space-y-4">
                 <div><p class="text-sm text-gray-400">Subject: <span class="font-semibold text-gray-200">${logData.subject}</span></p></div>
@@ -254,12 +252,9 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
                 </div>
             </div>`;
         const footer = `<div class="flex justify-end"><button id="submit-log-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Submit</button></div>`;
-        
         showModal(isCorrection ? 'Correct Tuition Log' : 'Add Tuition Log', body, footer, (modal) => {
             modal.querySelector('#submit-log-btn').addEventListener('click', async () => {
                 let finalLogData = {};
-
-                // --- UPDATED: Build the correct JSON for each log type ---
                 if (logData.log_type === 'scheduled') {
                     finalLogData = {
                         log_type: "scheduled",
@@ -267,7 +262,7 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
                         start_time: new Date(modal.querySelector('#log-start-time').value).toISOString(),
                         end_time: new Date(modal.querySelector('#log-end-time').value).toISOString()
                     };
-                } else { // custom
+                } else {
                     finalLogData = {
                         log_type: "custom",
                         teacher_id: appState.currentUser.id,
@@ -278,7 +273,6 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
                         charges: logData.charges
                     };
                 }
-
                 showLoadingOverlay('Saving log...');
                 try {
                     if (isCorrection) {
@@ -360,64 +354,60 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
         try {
             const data = await fetchCustomLogEntryData(appState.currentUser.id);
             hideStatusOverlay();
-
-            // UPDATED: UI now includes a cost input for each student
-            const studentsHTML = data.students.map(s => `
+            const studentsHTML = data.students.map(s => {
+                const existingCharge = isCorrection ? logToCorrect.charges.find(c => c.student_id === s.id) : null;
+                const isChecked = existingCharge ? 'checked' : '';
+                const costValue = existingCharge ? existingCharge.cost : '';
+                const isHidden = existingCharge ? '' : 'hidden';
+                return `
                 <label class="flex items-center justify-between p-2 hover:bg-gray-600 rounded-md">
                     <div class="flex items-center space-x-2">
-                        <input type="checkbox" class="student-checkbox" data-student-id="${s.id}" data-student-name="${s.first_name}">
+                        <input type="checkbox" class="student-checkbox" data-student-id="${s.id}" data-student-name="${s.first_name}" ${isChecked}>
                         <span>${s.first_name} ${s.last_name}</span>
                     </div>
                     <div class="w-24">
-                        <input type="number" class="student-cost-input w-full p-1 bg-gray-800 rounded-md border border-gray-500 text-sm hidden" placeholder="Cost" step="0.5">
+                        <input type="number" class="student-cost-input w-full p-1 bg-gray-800 rounded-md border border-gray-500 text-sm ${isHidden}" placeholder="Cost" step="0.5" value="${costValue}">
                     </div>
-                </label>`).join('');
-
+                </label>`;
+            }).join('');
             const subjectsHTML = data.subjects.map(sub => `<option value="${sub}">${sub}</option>`).join('');
-            const body = `
-                <div class="space-y-4">
-                    <div><label class="text-sm text-gray-400">Select Students & Set Cost</label><div class="max-h-40 overflow-y-auto space-y-1 mt-1 border border-gray-600 p-2 rounded-md">${studentsHTML}</div></div>
-                    <div><label class="text-sm text-gray-400">Select Subject</label><select id="custom-subject" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600">${subjectsHTML}</select></div>
-                </div>`;
+            const body = `<div class="space-y-4"><div><label class="text-sm text-gray-400">Select Students & Set Cost</label><div class="max-h-40 overflow-y-auto space-y-1 mt-1 border border-gray-600 p-2 rounded-md">${studentsHTML}</div></div><div><label class="text-sm text-gray-400">Select Subject</label><select id="custom-subject" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600">${subjectsHTML}</select></div></div>`;
             const footer = `<div class="flex justify-end"><button id="next-custom-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Next</button></div>`;
-            
             showModal('Add Custom Log', body, footer, (modal) => {
-                // Show/hide cost input when a student is checked
+                if (isCorrection) {
+                    modal.querySelector('#custom-subject').value = logToCorrect.subject;
+                }
                 modal.querySelectorAll('.student-checkbox').forEach(checkbox => {
                     checkbox.addEventListener('change', (e) => {
                         const costInput = e.target.closest('label').querySelector('.student-cost-input');
                         costInput.classList.toggle('hidden', !e.target.checked);
                     });
                 });
-
                 modal.querySelector('#next-custom-btn').addEventListener('click', () => {
                     const charges = [];
                     const selectedStudentNames = [];
+                    let isValid = true;
                     modal.querySelectorAll('.student-checkbox:checked').forEach(checkbox => {
+                        if (!isValid) return;
                         const costInput = checkbox.closest('label').querySelector('.student-cost-input');
                         const cost = parseFloat(costInput.value);
                         if (isNaN(cost) || cost <= 0) {
                             alert(`Please enter a valid cost for ${checkbox.dataset.studentName}.`);
-                            charges.length = 0; // Invalidate charges
+                            isValid = false;
                             return;
                         }
-                        charges.push({
-                            student_id: checkbox.dataset.studentId,
-                            cost: cost
-                        });
+                        charges.push({ student_id: checkbox.dataset.studentId, cost: cost });
                         selectedStudentNames.push(checkbox.dataset.studentName);
                     });
-
-                    if (charges.length === 0) {
-                        alert('Please select at least one student and enter their cost.');
+                    if (!isValid || charges.length === 0) {
+                        if (isValid) alert('Please select at least one student and enter their cost.');
                         return;
                     }
-
                     logData = {
                         log_type: 'custom',
                         charges: charges,
                         student_names: selectedStudentNames,
-                        all_students: data.students, // Pass full student list for final display
+                        all_students: data.students,
                         subject: modal.querySelector('#custom-subject').value,
                     };
                     _renderFinalStep();
@@ -429,31 +419,20 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
         }
     };
 
-    // --- Main entry point for the modal ---
     if (isCorrection) {
-        // If correcting, skip the choice and go straight to the final step
         logData = {
             log_type: logToCorrect.create_type.toLowerCase(),
             subject: logToCorrect.subject,
-            student_names: logToCorrect.attendee_names,
-            cost: logToCorrect.cost,
+            student_names: logToCorrect.attendee_names, 
             tuition_id: logToCorrect.tuition_id,
-            charges: logToCorrect.charges // This was the missing piece
+            charges: logToCorrect.charges
         };
-
-        // For custom logs, we need the full student list to properly display the final step
         if (logData.log_type === 'custom') {
-            try {
-                const data = await fetchCustomLogEntryData(appState.currentUser.id);
-                logData.all_students = data.students;
-            } catch(e) {
-                showStatusMessage('error', 'Could not load data for correction.');
-                return;
-            }
+            await _renderCustomForm();
+        } else {
+            _renderFinalStep();
         }
-        _renderFinalStep();
     } else {
-        // If adding a new log, show the initial choice
         const body = `<div class="flex space-x-4"><button id="from-schedule-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md">From Schedule</button><button id="custom-entry-btn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md">Custom Entry</button></div>`;
         showModal('Add New Tuition Log', body, '', (modal) => {
             modal.querySelector('#from-schedule-btn').addEventListener('click', _renderScheduledPicker);
