@@ -1,76 +1,89 @@
 import { appState } from './config.js';
-import { loginUser, signupUser, fetchStudents, fetchStudentProfile } from './api.js';
+import { loginUser, signupUser, fetchStudents, fetchStudentProfile, fetchCurrentUser } from './api.js';
 import { showLoadingOverlay, hideStatusOverlay, showAuthFeedback, showStatusMessage } from './ui/modals.js';
 import { navigateTo } from './ui/navigation.js';
 import { renderSidebar } from './ui/templates.js';
 
-export async function loadInitialData() {
-    if (!appState.currentUser) return;
-
-    if (appState.currentUser.role === 'parent') {
-        try {
-            const students = await fetchStudents(appState.currentUser.id);
-            appState.students = students;
-            appState.currentStudent = students[0] || null;
-        } catch (error) {
-            console.error("Error loading students:", error);
-            showAuthFeedback(error.message);
-        }
-    } else if (appState.currentUser.role === 'student') {
-        try {
-            // For students, fetch their own full profile to get availability data
-            const studentProfile = await fetchStudentProfile(appState.currentUser.id);
-            // Merge the profile data into the currentUser object
-            appState.currentUser = { ...appState.currentUser, ...studentProfile };
-        } catch (error) {
-            console.error("Error loading student profile:", error);
-            showAuthFeedback(error.message);
-        }
+// --- UPDATED: Split data loading based on role ---
+export async function loadInitialParentData(userId) {
+    try {
+        const students = await fetchStudents(userId);
+        appState.students = students;
+        appState.currentStudent = students[0] || null;
+    } catch (error) {
+        console.error("Error loading parent students:", error);
+        // Optionally show feedback if needed
     }
-  // No initial data is loaded for a teacher at this stage
 }
 
-export async function checkAuthState() {
-    const user = JSON.parse(localStorage.getItem('efficientTutorUser'));
+export async function loadInitialStudentData(userId) {
+    try {
+        const studentProfile = await fetchStudentProfile(userId);
+        // Merge profile data (like availability) into the currentUser object
+        appState.currentUser = { ...appState.currentUser, ...studentProfile };
+    } catch (error) {
+        console.error("Error loading student profile:", error);
+        // Optionally show feedback if needed
+    }
+}
 
-    if (user && user.id && user.role) {
-        appState.currentUser = user;
-        renderSidebar(user.role); // Render the correct sidebar
-        document.getElementById('user-info').classList.remove('hidden');
-        document.getElementById('logout-button').classList.remove('hidden');
-        document.getElementById('user-email').textContent = user.email;
-        
-        await loadInitialData();
-        
-        // Navigation logic based on role
-        if (user.role === 'parent') {
-            if (appState.currentUser.isFirstSignIn && appState.students.length === 0) {
-                navigateTo('student-info');
-            } else {
-                navigateTo('timetable');
+// --- UPDATED: checkAuthState now fetches user data if token exists ---
+export async function checkAuthState() {
+    const token = localStorage.getItem('accessToken');
+
+    if (token) {
+        try {
+            // If token exists, try to fetch user details
+            const userDetails = await fetchCurrentUser();
+            appState.currentUser = userDetails; // Store fetched details
+
+            renderSidebar(userDetails.role);
+            document.getElementById('user-info').classList.remove('hidden');
+            document.getElementById('logout-button').classList.remove('hidden');
+            document.getElementById('user-email').textContent = userDetails.email;
+
+            // Load role-specific data AFTER getting user details
+            if (userDetails.role === 'parent') {
+                await loadInitialParentData(userDetails.id);
+                 // Parent specific navigation
+                if (appState.students.length === 0) { // Check for first sign in concept if needed
+                    navigateTo('student-info');
+                } else {
+                    navigateTo('timetable');
+                }
+            } else if (userDetails.role === 'student') {
+                await loadInitialStudentData(userDetails.id);
+                navigateTo('timetable'); // Student default page
+            } else if (userDetails.role === 'teacher') {
+                // No specific data load for teacher yet
+                navigateTo('teacher-tuition-logs'); // Teacher default page
             }
 
-        } else if (user.role === 'student') {
-            // Students are directed to their timetable by default
-            navigateTo('timetable');
-
-        } else if (user.role === 'teacher') {
-            // Teachers are directed to the tuition logs page by default
-            navigateTo('teacher-tuition-logs');
+        } catch (error) {
+            // If fetching user fails (e.g., token expired), clear token and log out
+            console.error("Failed to fetch user with token:", error);
+            handleLogout(); // Effectively logs the user out
+            showAuthFeedback("Your session may have expired. Please log in again.");
         }
-
     } else {
-        renderSidebar(null); // Render no sidebar items if logged out
+        // No token, ensure user is logged out
+        renderSidebar(null);
+        appState.currentUser = null;
+        appState.students = [];
+        appState.currentStudent = null;
+        document.getElementById('user-info').classList.add('hidden');
+        document.getElementById('logout-button').classList.add('hidden');
         navigateTo('login');
     }
 }
 
+// --- UPDATED: handleLogin stores token, then calls checkAuthState ---
 export async function handleLogin(email, password) {
     showLoadingOverlay('Logging in...');
     try {
-        const data = await loginUser(email, password);
-        localStorage.setItem('efficientTutorUser', JSON.stringify(data.user));
-        await checkAuthState();
+        const data = await loginUser(email, password); // Gets {access_token: ..., token_type: ...}
+        localStorage.setItem('accessToken', data.access_token);
+        await checkAuthState(); // checkAuthState will now fetch user details
     } catch (error) {
         showAuthFeedback(error.message);
     } finally {
@@ -78,30 +91,34 @@ export async function handleLogin(email, password) {
     }
 }
 
-export async function handleSignup(email, password) {
+// --- UPDATED: handleSignup no longer logs in, shows message ---
+export async function handleSignup(email, password, firstName, lastName) {
     showLoadingOverlay('Signing up...');
     try {
-        const data = await signupUser(email, password);
-        localStorage.setItem('efficientTutorUser', JSON.stringify(data.user));
-        showStatusMessage('success', data.message || 'Signup successful!');
-        setTimeout(() => {
-            checkAuthState();
-        }, 2000);
+        // Signup returns user details (UserRead) but doesn't log them in
+        await signupUser(email, password, firstName, lastName);
+
+        // Don't store token or user data
+        hideStatusOverlay(); // Hide loading
+        showAuthFeedback('Signup successful! Please log in with your new account.', 'success');
+
     } catch (error) {
         hideStatusOverlay();
         showAuthFeedback(error.message);
     }
+    // No 'finally' needed here as overlay is handled in try/catch
 }
 
+// --- UPDATED: handleLogout clears token ---
 export function handleLogout() {
-    localStorage.removeItem('efficientTutorUser');
+    localStorage.removeItem('accessToken'); // Clear the token
     appState.currentUser = null;
     appState.students = [];
     appState.currentStudent = null;
-    
+
     document.getElementById('user-info').classList.add('hidden');
     document.getElementById('logout-button').classList.add('hidden');
-    renderSidebar(null); // Clear the sidebar on logout
+    renderSidebar(null);
 
     navigateTo('login');
 }
