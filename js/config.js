@@ -2,7 +2,7 @@
 export const config = {
     // UPDATED: Now also checks for the '0.0.0.0' hostname
     backendUrl: (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost' || window.location.hostname === '0.0.0.0')
-        ? 'http://127.0.0.1:5000' // Local backend for testing
+        ? 'http://127.0.0.1:8000' // Local backend for testing
         : 'https://personal-time-manager.onrender.com', // Production backend
     
     subjects: ['Math', 'Physics', 'Chemistry', 'Biology', 'IT'],
