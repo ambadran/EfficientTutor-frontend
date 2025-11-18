@@ -1,13 +1,13 @@
 import { appState } from './config.js';
-import { loginUser, signupUser, fetchStudents, fetchStudentProfile, fetchCurrentUser } from './api.js';
+import { loginUser, signupUser, fetchStudents, fetchCurrentUser } from './api.js';
 import { showLoadingOverlay, hideStatusOverlay, showAuthFeedback, showStatusMessage } from './ui/modals.js';
 import { navigateTo } from './ui/navigation.js';
 import { renderSidebar } from './ui/templates.js';
 
 // --- UPDATED: Split data loading based on role ---
-export async function loadInitialParentData(userId) {
+export async function loadInitialParentData() {
     try {
-        const students = await fetchStudents(userId);
+        const students = await fetchStudents();
         appState.students = students;
         appState.currentStudent = students[0] || null;
     } catch (error) {
@@ -16,11 +16,11 @@ export async function loadInitialParentData(userId) {
     }
 }
 
-export async function loadInitialStudentData(userId) {
+export async function loadInitialStudentData() {
     try {
-        const studentProfile = await fetchStudentProfile(userId);
-        // Merge profile data (like availability) into the currentUser object
-        appState.currentUser = { ...appState.currentUser, ...studentProfile };
+        // The /users/me endpoint now returns all necessary student profile data,
+        // so a separate profile fetch is no longer needed.
+        // The data is already in appState.currentUser.
     } catch (error) {
         console.error("Error loading student profile:", error);
         // Optionally show feedback if needed
@@ -44,7 +44,7 @@ export async function checkAuthState() {
 
             // Load role-specific data AFTER getting user details
             if (userDetails.role === 'parent') {
-                await loadInitialParentData(userDetails.id);
+                await loadInitialParentData();
                  // Parent specific navigation
                 if (appState.students.length === 0) { // Check for first sign in concept if needed
                     navigateTo('student-info');
@@ -52,7 +52,7 @@ export async function checkAuthState() {
                     navigateTo('timetable');
                 }
             } else if (userDetails.role === 'student') {
-                await loadInitialStudentData(userDetails.id);
+                await loadInitialStudentData();
                 navigateTo('timetable'); // Student default page
             } else if (userDetails.role === 'teacher') {
                 // No specific data load for teacher yet
@@ -92,11 +92,11 @@ export async function handleLogin(email, password) {
 }
 
 // --- UPDATED: handleSignup no longer logs in, shows message ---
-export async function handleSignup(email, password, firstName, lastName) {
+export async function handleSignup(email, password, firstName, lastName, role) {
     showLoadingOverlay('Signing up...');
     try {
         // Signup returns user details (UserRead) but doesn't log them in
-        await signupUser(email, password, firstName, lastName);
+        await signupUser(email, password, firstName, lastName, role);
 
         // Don't store token or user data
         hideStatusOverlay(); // Hide loading

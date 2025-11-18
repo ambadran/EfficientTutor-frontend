@@ -5,6 +5,17 @@ export function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
 }
 
+export function initializeLayout() {
+    const sidebar = document.getElementById('sidebar');
+    if (window.innerWidth >= 768) { // md breakpoint
+        sidebar.classList.add('open');
+        appState.isSidebarOpen = true;
+    } else {
+        sidebar.classList.remove('open');
+        appState.isSidebarOpen = false;
+    }
+}
+
 export function displayGlobalError(message) {
     document.getElementById('page-title').textContent = "Error";
     document.getElementById('page-content').innerHTML = `

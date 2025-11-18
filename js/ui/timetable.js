@@ -174,8 +174,18 @@ export function renderTimetableComponent(isWizard, dataSource, tuitions = []) {
 }
 
 // THIS FUNCTION IS UPDATED to accept a studentId
-export async function renderTimetablePage(studentId) {
-    if (!studentId) {
+export async function renderTimetablePage() {
+    // ADDED: A guard for the teacher role, as this page is not intended for them.
+    if (appState.currentUser?.role === 'teacher') {
+        return `<div class="text-center p-8 text-gray-400">Timetable view is not applicable for teachers. Please use the "Tuition Logs" and "Payment Logs" pages.</div>`;
+    }
+
+    // For students, their ID is the currentUser ID. For parents, it's the currentStudent ID.
+    const studentIdForCheck = appState.currentUser.role === 'student'
+        ? appState.currentUser.id
+        : appState.currentStudent?.id;
+
+    if (!studentIdForCheck) {
         if (appState.currentUser?.role === 'parent') {
             return `<div class="text-center p-8 text-gray-400">No student selected. Please add or select a student from the 'Student Info' page.</div>`;
         }
@@ -183,10 +193,16 @@ export async function renderTimetablePage(studentId) {
     }
     
     try {
-        const backendTimetable = await fetchTimetable(studentId);
+        const allTuitions = await fetchTimetable();
         // The data source for the timetable component depends on the user's role
         const dataSource = appState.currentUser.role === 'parent' ? appState.currentStudent : appState.currentUser;
-        return renderTimetableComponent(false, dataSource, backendTimetable.tuitions);
+        
+        // For parents, the backend returns all children's tuitions, so we filter for the selected student.
+        const tuitions = appState.currentUser.role === 'parent'
+            ? allTuitions.filter(t => t.student_id === appState.currentStudent.id)
+            : allTuitions;
+
+        return renderTimetableComponent(false, dataSource, tuitions);
     } catch (error) {
         console.error("Error fetching timetable:", error);
         return `<div class="text-center text-red-400 p-8">Error loading timetable: ${error.message}</div>`;

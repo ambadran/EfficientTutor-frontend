@@ -1,5 +1,5 @@
 import { appState } from '../config.js';
-import { fetchNotes, fetchMeetingLinks, fetchFinancialSummary, fetchTuitionLogs } from '../api.js';
+import { fetchNotes, fetchMeetingLinks, fetchFinancialSummary, fetchTuitionLogs, fetchTuitions, fetchTimetable } from '../api.js';
 import { showModal, closeModal , showLoadingOverlay, hideStatusOverlay} from './modals.js';
 import { renderPage } from './navigation.js';
 
@@ -29,8 +29,7 @@ export function renderSidebar(role) {
             <a href="#" id="nav-teacher-tuition-logs" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-file-invoice-dollar w-6 mr-3"></i> Tuition Logs</a>
             <a href="#" id="nav-teacher-payment-logs" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-money-check-alt w-6 mr-3"></i> Payment Logs</a>
             <a href="#" id="nav-teacher-notes" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-book-open w-6 mr-3"></i> Notes</a>
-            <a href="#" id="nav-teacher-meeting-links" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-video w-6 mr-3"></i> Meeting Links</a>
-            <a href="#" id="nav-teacher-timetables" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-calendar-alt w-6 mr-3"></i> Timetables</a>
+            <a href="#" id="nav-teacher-tuitions" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-video w-6 mr-3"></i> Tuitions</a>
             <a href="#" id="nav-teacher-student-info" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-users w-6 mr-3"></i> Student Info</a>
         `;
     }
@@ -58,6 +57,14 @@ export function renderLoginPage() {
                 <div id="last-name-group" class="hidden">
                     <label for="lastName" class="block text-sm font-medium text-gray-400">Last Name</label>
                     <input type="text" id="lastName" placeholder="Last Name" class="w-full mt-1 p-3 bg-gray-700 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+
+                <div id="role-group" class="hidden">
+                    <label for="role" class="block text-sm font-medium text-gray-400">I am a...</label>
+                    <select id="role" class="w-full mt-1 p-3 bg-gray-700 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="parent" selected>Parent</option>
+                        <option value="teacher">Teacher</option>
+                    </select>
                 </div>
 
                 <div>
@@ -132,8 +139,8 @@ export async function renderLogsPage() {
     
     try {
         const [summary, detailed_logs] = await Promise.all([
-            fetchFinancialSummary(appState.currentUser.id),
-            fetchTuitionLogs(appState.currentUser.id)
+            fetchFinancialSummary(),
+            fetchTuitionLogs()
         ]);
 
         // Helper function to format just the time part, moved outside the loop for efficiency
@@ -213,7 +220,7 @@ export function renderSettingsPage() {
 
 export async function renderNotesPage() {
     try {
-        const notes = await fetchNotes(appState.currentUser.id);
+        const notes = await fetchNotes();
         if (notes.length === 0) {
             return `<div class="text-center p-8 text-gray-400">No notes have been added for you yet.</div>`;
         }
@@ -237,7 +244,9 @@ export async function renderNotesPage() {
 // THIS FUNCTION IS IMPROVED
 export async function renderMeetingLinksPage() {
     try {
-        const links = await fetchMeetingLinks(appState.currentUser.id);
+        const timetable = await fetchMeetingLinks();
+        const links = timetable.tuitions.filter(t => t.meeting_link);
+
         if (links.length === 0) {
             return `<div class="text-center p-8 text-gray-400">You have no scheduled tuitions with meeting links yet.</div>`;
         }
@@ -291,15 +300,129 @@ export async function renderMeetingLinksPage() {
 export function renderTeacherPaymentLogsPage() {
     return `<div class="p-8 text-center text-gray-400">The Payment Logs feature will be implemented here.</div>`;
 }
-export function renderTeacherNotesPage() {
-    return `<div class="p-8 text-center text-gray-400">The Notes feature will be implemented here.</div>`;
+export async function renderTeacherNotesPage() {
+    try {
+        const notes = await fetchNotes();
+        if (notes.length === 0) {
+            return `<div class="text-center p-8 text-gray-400">No notes found.</div>`;
+        }
+
+        const notesHTML = notes.map(note => `
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h3 class="font-semibold text-lg text-indigo-300">${note.name}</h3>
+                <p class="text-gray-400 my-2">${note.description}</p>
+                <a href="${note.url}" target="_blank" rel="noopener noreferrer" class="inline-block text-sm text-blue-400 hover:text-blue-300">
+                    Open PDF <i class="fas fa-external-link-alt ml-1"></i>
+                </a>
+            </div>
+        `).join('');
+
+        return `<div class="space-y-4">${notesHTML}</div>`;
+    } catch (error) {
+        return `<div class="text-center text-red-400 p-8">Error loading notes: ${error.message}</div>`;
+    }
 }
-export function renderTeacherMeetingLinksPage() {
-    return `<div class="p-8 text-center text-gray-400">The Meeting Links feature will be implemented here.</div>`;
+export async function renderTeacherTuitionsPage() {
+    try {
+        showLoadingOverlay('Loading tuitions...');
+        const scheduledTuitions = await fetchTimetable();
+        appState.teacherScheduledTuitions = scheduledTuitions; // Store for later use (e.g., modals)
+        hideStatusOverlay();
+
+        if (scheduledTuitions.length === 0) {
+            return `<div class="text-center p-8 text-gray-400">No scheduled tuitions found in the timetable.</div>`;
+        }
+
+        const tuitionCardsHTML = scheduledTuitions.map(item => {
+            const tuition = item.tuition; // The detailed object is nested
+            if (!tuition) return ''; // Safety check
+
+            const hasLink = tuition.meeting_link && tuition.meeting_link.meeting_link;
+            const linkURL = hasLink ? tuition.meeting_link.meeting_link : '#';
+            const linkID = hasLink ? tuition.meeting_link.meeting_id : 'N/A';
+            const linkPassword = hasLink ? tuition.meeting_link.meeting_password : 'N/A';
+
+            const studentNames = (tuition.charges || []).map(c => c.student.first_name);
+            const chargesHTML = (tuition.charges || []).map(charge => `
+                <li class="flex justify-between items-center text-sm">
+                    <span>${charge.student.first_name}</span>
+                    <span class="font-semibold">${charge.cost} kwd</span>
+                </li>
+            `).join('');
+
+            // Format the schedule time from the parent item
+            const scheduleHTML = `
+                <p class="text-lg font-semibold capitalize">${new Date(item.start_time).toLocaleDateString('en-US', { weekday: 'long' })}</p>
+                <p class="text-sm text-gray-400">${new Date(item.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${new Date(item.end_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
+            `;
+
+            return `
+                <div class="bg-gray-800 p-4 rounded-lg shadow-md">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="font-semibold text-xl text-indigo-300">${tuition.subject}</h3>
+                            <p class="text-sm text-gray-400">${studentNames.join(', ')}</p>
+                        </div>
+                        <div class="text-right flex-shrink-0 ml-4">
+                            ${scheduleHTML}
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-gray-700 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-400 mb-2">Details</h4>
+                            <div class="text-sm space-y-1">
+                                <p class="flex justify-between"><span>Duration:</span> <span class="font-semibold">${tuition.min_duration_minutes || 'N/A'} mins</span></p>
+                                <p class="flex justify-between"><span>Lesson Index:</span> <span class="font-semibold">${tuition.lesson_index || 'N/A'}</span></p>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-400 mb-2">Charges</h4>
+                            <ul class="space-y-1">${chargesHTML || '<li class="text-sm text-gray-500">No charges set.</li>'}</ul>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-400 mb-2">Meeting Link</h4>
+                            ${hasLink
+                                ? `<button class="view-meeting-link-btn w-full p-2 text-sm bg-blue-600 hover:bg-blue-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-external-link-alt mr-2"></i>View Link</button>`
+                                : `<p class="text-gray-500 text-sm">No meeting link assigned.</p>`
+                            }
+                            <div class="flex items-center space-x-2 mt-3">
+                                 <button title="Set Link" class="edit-meeting-link-btn w-full p-2 text-sm bg-gray-600 hover:bg-gray-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-edit"></i> ${hasLink ? 'Edit' : 'Set'} Link</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        return `<div class="space-y-6">${tuitionCardsHTML}</div>`;
+    } catch (error) {
+        console.error("Error rendering teacher tuitions page:", error);
+        hideStatusOverlay();
+        return `<div class="text-center text-red-400 p-8">Error loading tuitions: ${error.message}</div>`;
+    }
 }
 export function renderTeacherTimetablesPage() {
-    return `<div class="p-8 text-center text-gray-400">The Timetables feature will be implemented here.</div>`;
+    return `<div class="p-8 text-center text-gray-400">The Timetables feature for teachers is not yet implemented.</div>`;
 }
-export function renderTeacherStudentInfoPage() {
-    return `<div class="p-8 text-center text-gray-400">The Student Info feature will be implemented here.</div>`;
+export async function renderTeacherStudentInfoPage() {
+    try {
+        const students = await fetchStudents();
+        let studentListHTML = students.map(student => `
+            <div class="bg-gray-800 p-4 rounded-lg flex items-center justify-between">
+                <div>
+                    <p class="font-semibold text-lg">${student.first_name} ${student.last_name}</p>
+                    <p class="text-sm text-gray-400">Grade: ${student.grade}</p>
+                </div>
+            </div>`).join('');
+
+        if (students.length === 0) {
+            studentListHTML = `<p class="text-center text-gray-400 py-8">No students found.</p>`;
+        }
+
+        return `<div class="space-y-4">${studentListHTML}</div>`;
+    } catch (error) {
+        console.error("Error rendering teacher student info page:", error);
+        return `<div class="text-center text-red-400 p-8">Error loading student information: ${error.message}</div>`;
+    }
 }

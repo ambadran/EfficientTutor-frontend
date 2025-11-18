@@ -8,7 +8,7 @@ import {
     renderNotesPage,
     renderMeetingLinksPage,
     renderTeacherNotesPage,
-    renderTeacherMeetingLinksPage,
+    renderTeacherTuitionsPage,
     renderTeacherTimetablesPage,
     renderTeacherStudentInfoPage
 } from './templates.js';
@@ -38,11 +38,7 @@ export async function renderPage() {
                 break;
             case 'timetable':
                 pageTitle.textContent = 'Timetable';
-                // For students, their ID is the currentUser ID. For parents, it's the currentStudent ID.
-                const studentIdForTimetable = appState.currentUser.role === 'student'
-                    ? appState.currentUser.id
-                    : appState.currentStudent?.id;
-                content = await renderTimetablePage(studentIdForTimetable);
+                content = await renderTimetablePage();
                 break;
             case 'logs':
                 pageTitle.textContent = 'Logs';
@@ -81,9 +77,9 @@ export async function renderPage() {
                 pageTitle.textContent = 'Notes';
                 content = renderTeacherNotesPage();
                 break;
-            case 'teacher-meeting-links':
-                pageTitle.textContent = 'Meeting Links';
-                content = renderTeacherMeetingLinksPage();
+            case 'teacher-tuitions':
+                pageTitle.textContent = 'Tuitions';
+                content = await renderTeacherTuitionsPage();
                 break;
             case 'teacher-timetables':
                 pageTitle.textContent = 'Timetables';
