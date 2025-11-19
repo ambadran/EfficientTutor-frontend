@@ -5,16 +5,14 @@ import {
     renderStudentInfoPage, 
     renderLogsPage, 
     renderSettingsPage,
-    renderNotesPage,
-    renderMeetingLinksPage,
-    renderTeacherNotesPage,
-    renderTeacherTuitionsPage,
+    renderTuitionsPage,
     renderTeacherTimetablesPage,
     renderTeacherStudentInfoPage
 } from './templates.js';
 import { renderTimetablePage } from './timetable.js';
 import { displayGlobalError } from './layout.js';
 import { renderTeacherTuitionLogsPage, renderTeacherPaymentLogsPage } from './teacher.js';
+import { renderNotesPage } from './notes.js';
 
 const pageContent = document.getElementById('page-content');
 const pageTitle = document.getElementById('page-title');
@@ -59,12 +57,14 @@ export async function renderPage() {
                 pageTitle.textContent = 'Notes';
                 content = await renderNotesPage();
                 break;
-            case 'meeting-links':
-                pageTitle.textContent = 'Meeting Links';
-                content = await renderMeetingLinksPage();
+            
+            // NEW UNIFIED TUITIONS PAGE
+            case 'tuitions':
+                pageTitle.textContent = 'Tuitions';
+                content = await renderTuitionsPage();
                 break;
 
-            // NEW: Teacher pages
+            // Teacher pages
             case 'teacher-tuition-logs':
                 pageTitle.textContent = 'Tuition Logs';
                 content = await renderTeacherTuitionLogsPage(); // Use the new function
@@ -75,11 +75,7 @@ export async function renderPage() {
                 break;
             case 'teacher-notes':
                 pageTitle.textContent = 'Notes';
-                content = renderTeacherNotesPage();
-                break;
-            case 'teacher-tuitions':
-                pageTitle.textContent = 'Tuitions';
-                content = await renderTeacherTuitionsPage();
+                content = await renderNotesPage();
                 break;
             case 'teacher-timetables':
                 pageTitle.textContent = 'Timetables';

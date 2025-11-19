@@ -1,9 +1,9 @@
 import { appState } from '../config.js';
-import { fetchNotes, fetchMeetingLinks, fetchFinancialSummary, fetchTuitionLogs, fetchTuitions, fetchTimetable } from '../api.js';
+import { fetchNotes, fetchFinancialSummary, fetchTuitionLogs, fetchTuitions, fetchTimetable } from '../api.js';
 import { showModal, closeModal , showLoadingOverlay, hideStatusOverlay} from './modals.js';
 import { renderPage } from './navigation.js';
 
-// --- NEW: Sidebar Rendering ---
+// --- UPDATED: Sidebar Rendering ---
 export function renderSidebar(role) {
     const navContainer = document.getElementById('sidebar-nav');
     if (!navContainer) return;
@@ -12,6 +12,8 @@ export function renderSidebar(role) {
     if (role === 'parent') {
         navLinks = `
             <a href="#" id="nav-timetable" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-calendar-alt w-6 mr-3"></i> Timetable</a>
+            <a href="#" id="nav-tuitions" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-chalkboard-teacher w-6 mr-3"></i> Tuitions</a>
+            <a href="#" id="nav-notes" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-book-open w-6 mr-3"></i> Notes</a>
             <a href="#" id="nav-logs" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-history w-6 mr-3"></i> Logs</a>
             <a href="#" id="nav-student-info" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-user-graduate w-6 mr-3"></i> Student Info</a>
             <a href="#" id="nav-settings" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-cog w-6 mr-3"></i> Settings</a>
@@ -19,17 +21,16 @@ export function renderSidebar(role) {
     } else if (role === 'student') {
         navLinks = `
             <a href="#" id="nav-timetable" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-calendar-alt w-6 mr-3"></i> Timetable</a>
+            <a href="#" id="nav-tuitions" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-chalkboard-teacher w-6 mr-3"></i> Tuitions</a>
             <a href="#" id="nav-notes" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-book-open w-6 mr-3"></i> Notes</a>
-            <a href="#" id="nav-meeting-links" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-video w-6 mr-3"></i> Meeting Links</a>
             <a href="#" id="nav-settings" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-cog w-6 mr-3"></i> Settings</a>
         `;
     } else if (role === 'teacher') {
-        // NEW: Sidebar for the teacher role
         navLinks = `
             <a href="#" id="nav-teacher-tuition-logs" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-file-invoice-dollar w-6 mr-3"></i> Tuition Logs</a>
             <a href="#" id="nav-teacher-payment-logs" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-money-check-alt w-6 mr-3"></i> Payment Logs</a>
             <a href="#" id="nav-teacher-notes" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-book-open w-6 mr-3"></i> Notes</a>
-            <a href="#" id="nav-teacher-tuitions" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-video w-6 mr-3"></i> Tuitions</a>
+            <a href="#" id="nav-tuitions" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-chalkboard-teacher w-6 mr-3"></i> Tuitions</a>
             <a href="#" id="nav-teacher-student-info" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-users w-6 mr-3"></i> Student Info</a>
         `;
     }
@@ -241,61 +242,170 @@ export async function renderNotesPage() {
     }
 }
 
-// THIS FUNCTION IS IMPROVED
-export async function renderMeetingLinksPage() {
-    try {
-        const timetable = await fetchMeetingLinks();
-        const links = timetable.tuitions.filter(t => t.meeting_link);
+// --- NEW: Unified Tuitions Page ---
 
-        if (links.length === 0) {
-            return `<div class="text-center p-8 text-gray-400">You have no scheduled tuitions with meeting links yet.</div>`;
+function renderTuitionCard(item, role) {
+    const { tuition, start_time, end_time } = item;
+    if (!tuition) return ''; // Safety check
+
+    // --- Schedule ---
+    let scheduleHTML = '';
+    if (start_time) {
+        const scheduleDate = new Date(start_time).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        const scheduleTime = `${new Date(start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${new Date(end_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+        scheduleHTML = `
+            <p class="text-lg font-semibold capitalize">${scheduleDate}</p>
+            <p class="text-sm text-gray-400">${scheduleTime}</p>
+        `;
+    } else {
+        scheduleHTML = `<p class="text-lg font-semibold text-yellow-400">Unscheduled</p>`;
+    }
+
+    // --- Attendees ---
+    let attendeesHTML = '';
+    if (role === 'teacher') {
+        const studentNames = (tuition.charges || []).map(c => `${c.student.first_name} ${c.student.last_name}`);
+        attendeesHTML = `<p class="text-sm text-gray-400">${studentNames.join(', ')}</p>`;
+    } else {
+        attendeesHTML = `<p class="text-sm text-gray-400">${(tuition.attendee_names || []).join(', ')}</p>`;
+    }
+
+    // --- Financials & Actions (Role-specific) ---
+    let financialsHTML = '';
+    let actionsHTML = '';
+    const hasLink = tuition.meeting_link && tuition.meeting_link.meeting_link;
+
+    if (role === 'teacher') {
+        const chargesHTML = (tuition.charges || []).map(charge => `
+            <li class="flex justify-between items-center text-sm">
+                <span>${charge.student.first_name} ${charge.student.last_name}</span>
+                <span class="font-semibold">${charge.cost} kwd</span>
+            </li>
+        `).join('');
+        financialsHTML = `
+            <div>
+                <h4 class="text-sm font-semibold text-gray-400 mb-2">Charges</h4>
+                <ul class="space-y-1">${chargesHTML || '<li class="text-sm text-gray-500">No charges set.</li>'}</ul>
+            </div>
+        `;
+        actionsHTML = `
+            <div>
+                <h4 class="text-sm font-semibold text-gray-400 mb-2">Meeting Link</h4>
+                ${hasLink
+                    ? `<button class="view-meeting-link-btn w-full p-2 text-sm bg-blue-600 hover:bg-blue-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-external-link-alt mr-2"></i>View Link</button>`
+                    : `<p class="text-gray-500 text-sm">No meeting link assigned.</p>`
+                }
+                <div class="flex items-center space-x-2 mt-3">
+                     <button title="Set Link" class="edit-meeting-link-btn w-full p-2 text-sm bg-gray-600 hover:bg-gray-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-edit"></i> ${hasLink ? 'Edit' : 'Set'} Link</button>
+                </div>
+            </div>
+        `;
+    } else if (role === 'parent') {
+        financialsHTML = `
+            <div>
+                <h4 class="text-sm font-semibold text-gray-400 mb-2">Your Charge</h4>
+                <p class="text-2xl font-bold text-indigo-300">${tuition.charge} kwd</p>
+            </div>
+        `;
+        if (hasLink) {
+            actionsHTML = `
+                <div class="self-center">
+                    <button class="view-meeting-link-btn w-full p-2 text-sm bg-blue-600 hover:bg-blue-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-external-link-alt mr-2"></i>View Link</button>
+                </div>
+            `;
+        }
+    } else { // Student
+        financialsHTML = `<div></div>`; // Keep middle column empty
+        if (hasLink) {
+            actionsHTML = `
+                <div class="flex flex-col space-y-2">
+                    <button class="view-meeting-link-btn w-full p-2 text-sm bg-blue-600 hover:bg-blue-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-external-link-alt mr-2"></i>View Details</button>
+                    <a href="${tuition.meeting_link.meeting_link}" target="_blank" rel="noopener noreferrer" class="w-full text-center bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition duration-300">Join Meeting</a>
+                </div>
+            `;
+        }
+    }
+
+    return `
+        <div class="bg-gray-800 p-4 rounded-lg shadow-md">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 class="font-semibold text-xl text-indigo-300">${tuition.subject}</h3>
+                    ${attendeesHTML}
+                </div>
+                <div class="text-right flex-shrink-0 ml-4">
+                    ${scheduleHTML}
+                </div>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-gray-700 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-400 mb-2">Details</h4>
+                    <div class="text-sm space-y-1">
+                        <p class="flex justify-between"><span>Duration:</span> <span class="font-semibold">${tuition.min_duration_minutes || 'N/A'} mins</span></p>
+                        <p class="flex justify-between"><span>Lesson Index:</span> <span class="font-semibold">${tuition.lesson_index || 'N/A'}</span></p>
+                    </div>
+                </div>
+                ${financialsHTML}
+                ${actionsHTML}
+            </div>
+        </div>
+    `;
+}
+
+export async function renderTuitionsPage() {
+    try {
+        showLoadingOverlay('Loading tuitions...');
+        const [scheduledTuitions, allTuitions] = await Promise.all([fetchTimetable(), fetchTuitions()]);
+        
+        // --- Merge Logic ---
+        const unifiedTuitions = [];
+        const scheduledTuitionIds = new Set();
+
+        // Add scheduled tuitions first
+        if (Array.isArray(scheduledTuitions)) {
+            scheduledTuitions.forEach(item => {
+                if (item.tuition) {
+                    unifiedTuitions.push(item);
+                    scheduledTuitionIds.add(item.tuition.id);
+                }
+            });
         }
 
-        // Helper function to format ISO dates into a readable string
-        const formatScheduleTime = (startTime, endTime) => {
-            if (!startTime || startTime === '--') {
-                return 'Not Scheduled';
-            }
-            try {
-                const startDate = new Date(startTime);
-                const endDate = new Date(endTime);
-                
-                const dayOptions = { weekday: 'long' };
-                const timeOptions = { hour: 'numeric', minute: 'numeric', hour12: true };
 
-                const dayString = new Intl.DateTimeFormat('en-US', dayOptions).format(startDate);
-                const startTimeString = new Intl.DateTimeFormat('en-US', timeOptions).format(startDate);
-                const endTimeString = new Intl.DateTimeFormat('en-US', timeOptions).format(endDate);
-
-                return `${dayString} at ${startTimeString} - ${endTimeString}`;
-            } catch (e) {
-                // Fallback for any unexpected format
-                return `${startTime} - ${endTime}`;
-            }
-        };
-
-        const linksHTML = links.map(link => `
-            <div class="bg-gray-800 p-4 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                    <h3 class="font-semibold text-lg">${link.subject}</h3>
-                    <p class="text-sm text-gray-400">${formatScheduleTime(link.start_time, link.end_time)}</p>
-                </div>
-                ${link.meeting_link
-                    ? `<a href="${link.meeting_link}" target="_blank" rel="noopener noreferrer" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition duration-300">
-                           Join Meeting <i class="fas fa-video ml-2"></i>
-                       </a>`
-                    : `<span class="px-4 py-2 bg-gray-600 text-gray-400 rounded-md text-sm">No Link Available</span>`
+        // Add unscheduled tuitions
+        if (Array.isArray(allTuitions)) {
+            allTuitions.forEach(tuition => {
+                if (!scheduledTuitionIds.has(tuition.id)) {
+                    unifiedTuitions.push({
+                        start_time: null,
+                        end_time: null,
+                        tuition: tuition
+                    });
                 }
-            </div>
-        `).join('');
+            });
+        }
+        
+        // Store for potential later use (e.g., modals)
+        appState.teacherScheduledTuitions = unifiedTuitions; 
+        hideStatusOverlay();
 
-        return `<div class="space-y-4">${linksHTML}</div>`;
+        if (unifiedTuitions.length === 0) {
+            return `<div class="text-center p-8 text-gray-400">No tuitions found.</div>`;
+        }
+
+        const userRole = appState.currentUser.role;
+        const tuitionCardsHTML = unifiedTuitions.map(item => renderTuitionCard(item, userRole)).join('');
+
+        return `<div class="space-y-6">${tuitionCardsHTML}</div>`;
     } catch (error) {
-        return `<div class="text-center text-red-400 p-8">Error loading meeting links: ${error.message}</div>`;
+        console.error("Error rendering tuitions page:", error);
+        hideStatusOverlay();
+        return `<div class="text-center text-red-400 p-8">Error loading tuitions: ${error.message}</div>`;
     }
 }
 
-// --- NEW: Teacher Page Placeholders ---
+// --- Teacher Page Placeholders ---
 
 export function renderTeacherPaymentLogsPage() {
     return `<div class="p-8 text-center text-gray-400">The Payment Logs feature will be implemented here.</div>`;
@@ -322,86 +432,7 @@ export async function renderTeacherNotesPage() {
         return `<div class="text-center text-red-400 p-8">Error loading notes: ${error.message}</div>`;
     }
 }
-export async function renderTeacherTuitionsPage() {
-    try {
-        showLoadingOverlay('Loading tuitions...');
-        const scheduledTuitions = await fetchTimetable();
-        appState.teacherScheduledTuitions = scheduledTuitions; // Store for later use (e.g., modals)
-        hideStatusOverlay();
 
-        if (scheduledTuitions.length === 0) {
-            return `<div class="text-center p-8 text-gray-400">No scheduled tuitions found in the timetable.</div>`;
-        }
-
-        const tuitionCardsHTML = scheduledTuitions.map(item => {
-            const tuition = item.tuition; // The detailed object is nested
-            if (!tuition) return ''; // Safety check
-
-            const hasLink = tuition.meeting_link && tuition.meeting_link.meeting_link;
-            const linkURL = hasLink ? tuition.meeting_link.meeting_link : '#';
-            const linkID = hasLink ? tuition.meeting_link.meeting_id : 'N/A';
-            const linkPassword = hasLink ? tuition.meeting_link.meeting_password : 'N/A';
-
-            const studentNames = (tuition.charges || []).map(c => c.student.first_name);
-            const chargesHTML = (tuition.charges || []).map(charge => `
-                <li class="flex justify-between items-center text-sm">
-                    <span>${charge.student.first_name}</span>
-                    <span class="font-semibold">${charge.cost} kwd</span>
-                </li>
-            `).join('');
-
-            // Format the schedule time from the parent item
-            const scheduleHTML = `
-                <p class="text-lg font-semibold capitalize">${new Date(item.start_time).toLocaleDateString('en-US', { weekday: 'long' })}</p>
-                <p class="text-sm text-gray-400">${new Date(item.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${new Date(item.end_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
-            `;
-
-            return `
-                <div class="bg-gray-800 p-4 rounded-lg shadow-md">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h3 class="font-semibold text-xl text-indigo-300">${tuition.subject}</h3>
-                            <p class="text-sm text-gray-400">${studentNames.join(', ')}</p>
-                        </div>
-                        <div class="text-right flex-shrink-0 ml-4">
-                            ${scheduleHTML}
-                        </div>
-                    </div>
-
-                    <div class="mt-4 pt-4 border-t border-gray-700 grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <h4 class="text-sm font-semibold text-gray-400 mb-2">Details</h4>
-                            <div class="text-sm space-y-1">
-                                <p class="flex justify-between"><span>Duration:</span> <span class="font-semibold">${tuition.min_duration_minutes || 'N/A'} mins</span></p>
-                                <p class="flex justify-between"><span>Lesson Index:</span> <span class="font-semibold">${tuition.lesson_index || 'N/A'}</span></p>
-                            </div>
-                        </div>
-                        <div>
-                            <h4 class="text-sm font-semibold text-gray-400 mb-2">Charges</h4>
-                            <ul class="space-y-1">${chargesHTML || '<li class="text-sm text-gray-500">No charges set.</li>'}</ul>
-                        </div>
-                        <div>
-                            <h4 class="text-sm font-semibold text-gray-400 mb-2">Meeting Link</h4>
-                            ${hasLink
-                                ? `<button class="view-meeting-link-btn w-full p-2 text-sm bg-blue-600 hover:bg-blue-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-external-link-alt mr-2"></i>View Link</button>`
-                                : `<p class="text-gray-500 text-sm">No meeting link assigned.</p>`
-                            }
-                            <div class="flex items-center space-x-2 mt-3">
-                                 <button title="Set Link" class="edit-meeting-link-btn w-full p-2 text-sm bg-gray-600 hover:bg-gray-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-edit"></i> ${hasLink ? 'Edit' : 'Set'} Link</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        return `<div class="space-y-6">${tuitionCardsHTML}</div>`;
-    } catch (error) {
-        console.error("Error rendering teacher tuitions page:", error);
-        hideStatusOverlay();
-        return `<div class="text-center text-red-400 p-8">Error loading tuitions: ${error.message}</div>`;
-    }
-}
 export function renderTeacherTimetablesPage() {
     return `<div class="p-8 text-center text-gray-400">The Timetables feature for teachers is not yet implemented.</div>`;
 }

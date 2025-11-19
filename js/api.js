@@ -1,81 +1,100 @@
-import { config } from './config.js';
+import { appState, config } from './config.js';
+import { handleLogout } from './auth.js';
 
-// --- Helper: Get Token
-function getAuthToken() {
-    return localStorage.getItem('accessToken');
-}
-
-// --- UPDATED: apiRequest now handles Auth Header ---
-async function apiRequest(endpoint, options = {}, requiresAuth = true) {
-    const token = getAuthToken();
-    const headers = new Headers(options.headers || {}); // Use Headers object
-
-    // Add Authorization header if a token exists and the request requires auth
-    if (requiresAuth && token) {
-        headers.set('Authorization', `Bearer ${token}`);
-    }
-
-    // Adjust Content-Type if sending form data
-    if (options.body instanceof URLSearchParams) {
-        headers.set('Content-Type', 'application/x-www-form-urlencoded');
-    } else if (!(options.body instanceof FormData) && options.body) {
-        // Default to JSON if body exists and is not FormData/URLSearchParams
-        headers.set('Content-Type', 'application/json');
-    }
-
-    const fetchOptions = {
-        ...options,
-        headers: headers,
+async function apiRequest(url, options = {}) {
+    const token = localStorage.getItem('accessToken');
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers,
     };
 
-    const response = await fetch(`${config.backendUrl}${endpoint}`, fetchOptions);
-    const text = await response.text();
-    let data = {};
-    try {
-        data = text ? JSON.parse(text) : {};
-    } catch (e) {
-        // Handle cases where the response might not be JSON (e.g., plain text error)
-        console.error("Failed to parse JSON response:", text);
-        // Re-throw specific error if needed, or rely on response.ok check
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
     }
 
-    if (!response.ok) {
-        throw new Error(data.detail || data.error || `Request to ${endpoint} failed with status ${response.status}.`);
+    const configOptions = {
+        ...options,
+        headers,
+    };
+
+    try {
+        const response = await fetch(`${config.backendUrl}${url}`, configOptions);
+
+        if (response.status === 204) {
+            return null;
+        }
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            // Check for the specific token validation error
+            if (response.status === 401 && data.detail === "Could not validate credentials") {
+                handleLogout();
+                return new Promise(() => {}); 
+            }
+            
+            // Handle other errors, including structured validation errors
+            let errorMsg = `HTTP error! status: ${response.status}`;
+            if (data && data.detail) {
+                if (Array.isArray(data.detail)) {
+                    // Format Pydantic validation errors
+                    errorMsg = data.detail.map(err => `${err.loc.join(' -> ')}: ${err.msg}`).join('; ');
+                } else {
+                    // Handle simple string detail
+                    errorMsg = data.detail;
+                }
+            }
+            throw new Error(errorMsg);
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('API Request Error:', error);
+        throw error;
     }
-    return data;
 }
 
 // --- Authentication ---
-
-// UPDATED: Login endpoint and request format
-export const loginUser = (email, password) => {
-    const formData = new URLSearchParams();
-    formData.append('username', email); // Key is 'username' now
-    formData.append('password', password);
-
-    // Login doesn't require prior auth, and sends form data
-    return apiRequest('/auth/login', {
-        method: 'POST',
-        body: formData,
-    }, false); // requiresAuth = false
-};
-
-// UPDATED: Signup endpoint now handles different roles
-export const signupUser = (email, password, firstName, lastName, role) => {
-    const endpoint = `/auth/signup/${role}`; // Dynamic endpoint based on role
-    const userData = {
-        email: email,
+export async function loginUser(email, password) {
+    const details = {
+        username: email,
         password: password,
-        first_name: firstName,
-        last_name: lastName,
     };
-    // Signup doesn't require prior auth, sends JSON
+
+    const formBody = Object.keys(details).map(key => 
+        encodeURIComponent(key) + '=' + encodeURIComponent(details[key])).join('&');
+
+    const response = await fetch(`${config.backendUrl}/auth/login`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        },
+        body: formBody
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        if (response.status === 400) {
+             throw new Error('Incorrect email or password.');
+        }
+        const errorMsg = (data.detail && Array.isArray(data.detail))
+            ? data.detail.map(err => err.msg).join(', ')
+            : data.detail || `HTTP error! status: ${response.status}`;
+        throw new Error(errorMsg);
+    }
+
+    return data;
+}
+
+export const signupUser = (email, password, firstName, lastName, role) => {
+    const endpoint = role === 'parent' ? '/auth/signup/parent' : '/auth/signup/teacher';
     return apiRequest(endpoint, {
         method: 'POST',
-        // apiRequest handles stringifying JSON and setting Content-Type
-        body: JSON.stringify(userData),
-    }, false); // requiresAuth = false
+        body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName, role })
+    });
 };
+
 
 // NEW: Fetch current user details using the token
 export const fetchCurrentUser = () => apiRequest('/users/me'); // Defaults to GET, requiresAuth=true
@@ -101,7 +120,6 @@ export const deleteStudentRequest = (studentId) => apiRequest(`/students/${stude
 export const fetchTimetable = () => apiRequest(`/timetable/`);
 
 // --- Student-Specific Views (Auth Needed) ---
-export const fetchNotes = () => apiRequest(`/notes/`);
 export const fetchMeetingLinks = () => apiRequest(`/timetable/`); // Meeting links are now part of the timetable
 
 // --- Unified Financial Logs & Summary (Auth Needed) ---
@@ -148,16 +166,30 @@ const buildMeetingLinkPayload = (url, password) => {
     return payload;
 };
 
-export const createMeetingLink = (tuitionId, url, password) => apiRequest(`/tuitions/${tuitionId}/meeting-link`, {
+export const createMeetingLink = (tuitionId, url, password) => apiRequest(`/tuitions/${tuitionId}/meeting_link`, {
     method: 'POST',
     body: JSON.stringify(buildMeetingLinkPayload(url, password))
 });
 
-export const updateMeetingLink = (tuitionId, url, password) => apiRequest(`/tuitions/${tuitionId}/meeting-link`, {
+export const updateMeetingLink = (tuitionId, url, password) => apiRequest(`/tuitions/${tuitionId}/meeting_link`, {
     method: 'PATCH',
     body: JSON.stringify(buildMeetingLinkPayload(url, password))
 });
 
 export const deleteMeetingLink = (tuitionId) => apiRequest(`/tuitions/${tuitionId}/meeting_link`, {
+    method: 'DELETE'
+});
+
+// --- Notes ---
+export const fetchNotes = () => apiRequest('/notes/');
+export const createNote = (noteData) => apiRequest('/notes/', {
+    method: 'POST',
+    body: JSON.stringify(noteData)
+});
+export const updateNote = (noteId, noteData) => apiRequest(`/notes/${noteId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(noteData)
+});
+export const deleteNote = (noteId) => apiRequest(`/notes/${noteId}`, {
     method: 'DELETE'
 });

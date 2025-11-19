@@ -41,6 +41,24 @@ export function showInfoModal(title, bodyHTML) {
     showModal(title, bodyHTML, `<div class="flex justify-end"><button id="modal-close-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">OK</button></div>`);
 }
 
+export function showConfirmDialog(title, message, onConfirm) {
+    const body = `<p>${message}</p>`;
+    const footer = `
+        <div class="flex justify-end space-x-4">
+            <button id="modal-cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">Cancel</button>
+            <button id="modal-confirm-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-md">Confirm</button>
+        </div>`;
+    
+    showModal(title, body, footer, (modal) => {
+        modal.querySelector('#modal-confirm-btn').addEventListener('click', () => {
+            closeModal();
+            onConfirm();
+        });
+        // The generic modal close button ('#modal-close-btn') will handle the cancel case.
+        modal.querySelector('#modal-cancel-btn').addEventListener('click', () => closeModal());
+    });
+}
+
 export function closeModal() {
     document.getElementById('modal-backdrop')?.remove();
 }

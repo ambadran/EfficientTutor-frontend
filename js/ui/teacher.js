@@ -396,20 +396,45 @@ export function showMeetingLinkModal(tuition) {
     const urlValue = existingLink ? existingLink.meeting_link : '';
     const passwordValue = existingLink ? existingLink.meeting_password : '';
     const body = `<div class="space-y-4"><div><label for="meeting-url" class="block text-sm font-medium text-gray-400">Meeting URL</label><input type="text" id="meeting-url" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${urlValue || ''}"></div><div><label for="meeting-password" class="block text-sm font-medium text-gray-400">Password (optional)</label><input type="text" id="meeting-password" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${passwordValue || ''}"></div></div>`;
-    const footer = `<div class="flex justify-end"><button id="submit-meeting-link-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Save</button></div>`;
+    
+    const deleteButtonHTML = existingLink 
+        ? `<button title="Delete Link" class="delete-meeting-link-btn p-2 px-4 text-sm bg-red-600 hover:bg-red-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-trash"></i> Delete</button>`
+        : '';
+
+    const footer = `
+        <div class="flex justify-between items-center w-full">
+            ${deleteButtonHTML}
+            <div class="flex-grow flex justify-end space-x-4">
+                 <button id="modal-close-btn" class="p-2 px-4 text-sm bg-gray-600 hover:bg-gray-500 rounded-md">Cancel</button>
+                 <button id="submit-meeting-link-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Save</button>
+            </div>
+        </div>`;
+
     showModal('Add/Edit Meeting Link', body, footer, (modal) => {
         modal.querySelector('#submit-meeting-link-btn').addEventListener('click', async () => {
             const url = modal.querySelector('#meeting-url').value;
             const password = modal.querySelector('#meeting-password').value;
             if (!url) {
-                alert('Please enter a meeting URL.');
+                if (existingLink) {
+                    showLoadingOverlay('Deleting link...');
+                    try {
+                        await deleteMeetingLink(tuition.id);
+                        closeModal();
+                        showStatusMessage('success', 'Meeting link deleted.');
+                        renderPage();
+                    } catch (error) {
+                        showStatusMessage('error', error.message);
+                    }
+                }
                 return;
             }
             showLoadingOverlay('Saving link...');
             try {
-                // The API for create and update might be different.
-                // Assuming one endpoint for simplicity based on previous context.
-                await updateMeetingLink(tuition.id, url, password);
+                if (existingLink) {
+                    await updateMeetingLink(tuition.id, url, password);
+                } else {
+                    await createMeetingLink(tuition.id, url, password);
+                }
                 closeModal();
                 showStatusMessage('success', 'Meeting link saved.');
                 renderPage();
@@ -434,8 +459,7 @@ export function showMeetingLinkDetailsModal(tuition) {
             <div><label class="text-xs text-gray-400">Password</label><p class="font-mono">${link.meeting_password || 'None'}</p></div>
         </div>`;
     const footer = `
-        <div class="flex justify-between items-center w-full">
-            <button title="Delete Link" class="delete-meeting-link-btn p-2 text-sm bg-red-600 hover:bg-red-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-trash"></i> Delete</button>
+        <div class="flex justify-end w-full">
             <button id="modal-close-btn" class="p-2 px-4 text-sm bg-gray-600 hover:bg-gray-500 rounded-md">Close</button>
         </div>`;
     showModal('Meeting Link Details', body, footer);

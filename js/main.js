@@ -1,14 +1,15 @@
 // --- IMPORTS ---
 import { appState } from './config.js';
-import { checkBackendStatus, postStudent, deleteStudentRequest, fetchStudent } from './api.js';
+import { checkBackendStatus, postStudent, deleteStudentRequest, fetchStudent, deleteNote, deleteMeetingLink } from './api.js';
 // UPDATED: Removed 'loadInitialData' from this import
 import { checkAuthState, handleLogin, handleSignup, handleLogout } from './auth.js';
 import { navigateTo, renderPage } from './ui/navigation.js';
 import { toggleSidebar, displayGlobalError, initializeLayout } from './ui/layout.js';
 import { showStudentRegistrationWizard } from './ui/studentWizard.js';
 import { confirmDeleteStudent } from './ui/templates.js';
-import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback, showModal } from './ui/modals.js';
+import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback, showModal, showConfirmDialog } from './ui/modals.js';
 import { renderTeacherTuitionLogsPage, handleVoidLog, showChargesDetail, showAddTuitionLogModal, renderTeacherPaymentLogsPage, showAddPaymentLogModal, handleVoidPaymentLog, showMeetingLinkModal, showMeetingLinkDetailsModal } from './ui/teacher.js';
+import { renderNotesList, showCreateNoteModal, showUpdateNoteModal } from './ui/notes.js';
 
 // --- DATA HANDLERS ---
 async function handleSaveStudent(studentData) {
@@ -229,7 +230,7 @@ document.body.addEventListener('click', (e) => {
     const deleteMeetingLinkBtn = closest('.delete-meeting-link-btn');
     if (deleteMeetingLinkBtn) {
         const tuitionId = deleteMeetingLinkBtn.dataset.tuitionId;
-        if (confirm('Are you sure you want to delete the meeting link for this tuition?')) {
+        showConfirmDialog('Delete Meeting Link', 'Are you sure you want to delete the meeting link for this tuition?', () => {
             showLoadingOverlay('Deleting link...');
             deleteMeetingLink(tuitionId)
                 .then(() => {
@@ -242,8 +243,44 @@ document.body.addEventListener('click', (e) => {
                 .finally(() => {
                     closeModal(); // Close the details modal if it's open
                 });
-        }
+        });
     }
+
+    // --- Notes Page ---
+    if (closest('#add-new-note-btn')) { showCreateNoteModal(); }
+    
+    const editNoteBtn = closest('.edit-note-btn');
+    if (editNoteBtn) {
+        const note = appState.notes.find(n => n.id === editNoteBtn.dataset.noteId);
+        if (note) showUpdateNoteModal(note);
+    }
+
+    const deleteNoteBtn = closest('.delete-note-btn');
+    if (deleteNoteBtn) {
+        const noteId = deleteNoteBtn.dataset.noteId;
+        const note = appState.notes.find(n => n.id === noteId);
+        const noteName = note ? `"${note.name}"` : "this note";
+        showConfirmDialog('Delete Note', `Are you sure you want to delete ${noteName}?`, () => {
+            showLoadingOverlay('Deleting note...');
+            deleteNote(noteId)
+                .then(() => {
+                    showStatusMessage('success', 'Note deleted.');
+                    renderPage();
+                })
+                .catch(err => showStatusMessage('error', `Failed to delete note: ${err.message}`));
+        });
+    }
+
+    const subjectCard = closest('.subject-card-button');
+    if (subjectCard) {
+        const subject = subjectCard.dataset.subject;
+        document.getElementById('notes-content-container').innerHTML = renderNotesList(subject);
+    }
+
+    if (closest('#back-to-subjects-btn')) {
+        renderPage();
+    }
+
 
     // Timetable Page Specific
     const mainTimetable = closest('#page-content .timetable-component');
@@ -262,6 +299,11 @@ document.getElementById('page-content').addEventListener('change', (e) => {
     if (e.target.id === 'student-selector') {
         appState.currentStudent = appState.students.find(s => s.id === e.target.value) || null;
         renderPage(); // Re-render the timetable/logs page for the selected student
+    }
+    // NEW: Listener for the Notes student selector
+    if (e.target.id === 'notes-student-selector') {
+        appState.notesStudentFilter = e.target.value;
+        renderPage();
     }
 });
 

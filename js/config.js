@@ -6,6 +6,9 @@ export const config = {
         : 'https://personal-time-manager.onrender.com', // Production backend
     
     subjects: ['Math', 'Physics', 'Chemistry', 'Biology', 'IT'],
+    // NEW: Enums for the notes feature, from the backend spec
+    noteSubjects: ["Math", "Physics", "Chemistry", "Biology", "IT", "Geography"],
+    noteTypes: ["STUDY_NOTES", "HOMEWORK", "PAST_PAPERS"],
     colors: {
         school: 'var(--school-color)',
         sports: 'var(--sports-color)',
@@ -31,4 +34,8 @@ export let appState = {
     currentTimetableDay: new Date().getDay() + 1 > 6 ? 0 : new Date().getDay() + 1,
     isSidebarOpen: false,
     teacherTuitionLogs: [], // NEW: Cache for the teacher's tuition log view
+    // NEW: State for the Notes feature
+    notes: [],
+    allStudents: [], // Cache for student lists for teachers/parents
+    notesStudentFilter: null, // ID of the student whose notes are being viewed
 };
