@@ -395,7 +395,24 @@ export function showMeetingLinkModal(tuition) {
     const existingLink = tuition.meeting_link;
     const urlValue = existingLink ? existingLink.meeting_link : '';
     const passwordValue = existingLink ? existingLink.meeting_password : '';
-    const body = `<div class="space-y-4"><div><label for="meeting-url" class="block text-sm font-medium text-gray-400">Meeting URL</label><input type="text" id="meeting-url" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${urlValue || ''}"></div><div><label for="meeting-password" class="block text-sm font-medium text-gray-400">Password (optional)</label><input type="text" id="meeting-password" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${passwordValue || ''}"></div></div>`;
+    const idValue = existingLink ? existingLink.meeting_id : '';
+
+    const body = `
+        <div class="space-y-4">
+            <div>
+                <label for="meeting-url" class="block text-sm font-medium text-gray-400">Meeting URL</label>
+                <input type="text" id="meeting-url" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${urlValue || ''}" placeholder="https://meet.google.com/abc-def-ghi">
+            </div>
+            <div>
+                <label for="meeting-id" class="block text-sm font-medium text-gray-400">Meeting ID (optional)</label>
+                <input type="text" id="meeting-id" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${idValue || ''}" placeholder="abc-def-ghi">
+                <p class="text-xs text-gray-500 mt-1">If left empty, will be auto-detected from Google Meet URLs.</p>
+            </div>
+            <div>
+                <label for="meeting-password" class="block text-sm font-medium text-gray-400">Password (optional)</label>
+                <input type="text" id="meeting-password" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${passwordValue || ''}">
+            </div>
+        </div>`;
     
     const deleteButtonHTML = existingLink 
         ? `<button title="Delete Link" class="delete-meeting-link-btn p-2 px-4 text-sm bg-red-600 hover:bg-red-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-trash"></i> Delete</button>`
@@ -412,8 +429,11 @@ export function showMeetingLinkModal(tuition) {
 
     showModal('Add/Edit Meeting Link', body, footer, (modal) => {
         modal.querySelector('#submit-meeting-link-btn').addEventListener('click', async () => {
-            const url = modal.querySelector('#meeting-url').value;
-            const password = modal.querySelector('#meeting-password').value;
+            const url = modal.querySelector('#meeting-url').value.trim();
+            const password = modal.querySelector('#meeting-password').value.trim();
+            const meetingId = modal.querySelector('#meeting-id').value.trim();
+
+            // If URL is empty, treat as a delete or no-op
             if (!url) {
                 if (existingLink) {
                     showLoadingOverlay('Deleting link...');
@@ -423,23 +443,39 @@ export function showMeetingLinkModal(tuition) {
                         showStatusMessage('success', 'Meeting link deleted.');
                         renderPage();
                     } catch (error) {
-                        showStatusMessage('error', error.message);
+                        showStatusMessage('error', `Failed to delete link: ${error.message}`);
                     }
+                } else {
+                    closeModal();
                 }
                 return;
             }
+
+            // --- Frontend Validation ---
+            // This regex is a basic check for URL-like structure.
+            const urlRegex = /^(https?:\/\/)?([\w\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+            if (!urlRegex.test(url)) {
+                showStatusMessage('error', 'Please enter a valid URL format.');
+                return;
+            }
+
             showLoadingOverlay('Saving link...');
             try {
                 if (existingLink) {
-                    await updateMeetingLink(tuition.id, url, password);
+                    await updateMeetingLink(tuition.id, url, password, meetingId);
                 } else {
-                    await createMeetingLink(tuition.id, url, password);
+                    await createMeetingLink(tuition.id, url, password, meetingId);
                 }
                 closeModal();
                 showStatusMessage('success', 'Meeting link saved.');
                 renderPage();
             } catch (error) {
-                showStatusMessage('error', error.message);
+                // Catch the specific backend validation error and make it user-friendly
+                if (error.message.includes('Input should be a valid URL')) {
+                    showStatusMessage('error', 'The provided URL is not valid. Please check and try again.');
+                } else {
+                    showStatusMessage('error', `Failed to save link: ${error.message}`);
+                }
             }
         });
     });

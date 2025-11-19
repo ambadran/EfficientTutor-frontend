@@ -148,32 +148,35 @@ export const postPaymentLogCorrection = (logId, correctionData) => apiRequest(`/
 
 // --- NEW: Meeting Link Management (Auth Needed) ---
 // Helper to build the meeting link payload
-const buildMeetingLinkPayload = (url, password) => {
+const buildMeetingLinkPayload = (url, password, meetingId) => {
     const payload = {
         meeting_link_type: 'GOOGLE_MEET', // Assuming default for now
         meeting_link: url,
-        meeting_password: password || null
+        meeting_password: password || null,
+        meeting_id: meetingId || null
     };
-    // Try to extract meeting ID from Google Meet URL
-    try {
-        const urlObject = new URL(url);
-        if (urlObject.hostname === 'meet.google.com') {
-            payload.meeting_id = urlObject.pathname.substring(1); // Remove leading '/'
+    // If no meetingId is provided, try to extract it from Google Meet URL
+    if (!payload.meeting_id) {
+        try {
+            const urlObject = new URL(url);
+            if (urlObject.hostname === 'meet.google.com') {
+                payload.meeting_id = urlObject.pathname.substring(1); // Remove leading '/'
+            }
+        } catch (e) {
+            // Ignore if URL is not valid
         }
-    } catch (e) {
-        // Ignore if URL is not valid, backend will handle it
     }
     return payload;
 };
 
-export const createMeetingLink = (tuitionId, url, password) => apiRequest(`/tuitions/${tuitionId}/meeting_link`, {
+export const createMeetingLink = (tuitionId, url, password, meetingId) => apiRequest(`/tuitions/${tuitionId}/meeting_link`, {
     method: 'POST',
-    body: JSON.stringify(buildMeetingLinkPayload(url, password))
+    body: JSON.stringify(buildMeetingLinkPayload(url, password, meetingId))
 });
 
-export const updateMeetingLink = (tuitionId, url, password) => apiRequest(`/tuitions/${tuitionId}/meeting_link`, {
+export const updateMeetingLink = (tuitionId, url, password, meetingId) => apiRequest(`/tuitions/${tuitionId}/meeting_link`, {
     method: 'PATCH',
-    body: JSON.stringify(buildMeetingLinkPayload(url, password))
+    body: JSON.stringify(buildMeetingLinkPayload(url, password, meetingId))
 });
 
 export const deleteMeetingLink = (tuitionId) => apiRequest(`/tuitions/${tuitionId}/meeting_link`, {
