@@ -24,3 +24,4 @@ __pychache__
 .python-version
 tmp
 tmp*
+node_modules/

@@ -1,0 +1,26 @@
+{
+  "name": "efficienttutor-frontend",
+  "version": "1.0.0",
+  "description": "This is a Tuition Management application. It's main purpose is to:  - Register Student: Take in, subjects, amount per week, busy times.  - Communicate with my \"Personal Time Management\" backend server which contains the MASTER ALGORITHM to take into account all studend time requirements, as well as all my time requirements to make the *perfect TimeTable* :D  - Show Timetable for specific students.  - Show logs of every session taken with details since begginning of year as well as summary.",
+  "main": "index.js",
+  "scripts": {
+    "build:css": "npx tailwindcss -i ./css/input.css -o ./css/style.css",
+    "watch:css": "npx tailwindcss -i ./css/input.css -o ./css/style.css --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ambadran/EfficientTutor.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ambadran/EfficientTutor/issues"
+  },
+  "homepage": "https://github.com/ambadran/EfficientTutor#readme",
+  "devDependencies": {
+    "tailwindcss": "^3.4.18"
+  }
+}
