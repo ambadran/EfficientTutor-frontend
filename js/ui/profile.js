@@ -1,5 +1,5 @@
 import { appState, config } from '../config.js';
-import { fetchTeacher, fetchTeacherSpecialties, fetchTimezones, fetchCurrencies } from '../api.js';
+import { fetchTeacher, fetchParent, fetchTeacherSpecialties, fetchTimezones, fetchCurrencies } from '../api.js';
 import { showLoadingOverlay, hideStatusOverlay } from './modals.js';
 
 export async function renderProfilePage() {
@@ -16,6 +16,10 @@ export async function renderProfilePage() {
             const content = await renderTeacherProfile();
             hideStatusOverlay();
             return content;
+        } else if (role === 'parent') {
+            const content = await renderParentProfile();
+            hideStatusOverlay();
+            return content;
         } else {
             hideStatusOverlay();
             // Placeholder for other roles
@@ -27,6 +31,70 @@ export async function renderProfilePage() {
         console.error("Error rendering profile:", error);
         return `<div class="text-center text-red-400 p-8">Error loading profile: ${error.message}</div>`;
     }
+}
+
+async function renderParentProfile() {
+    const parentId = appState.currentUser.id;
+    
+    const [parent, timezones, currencies] = await Promise.all([
+        fetchParent(parentId),
+        fetchTimezones(),
+        fetchCurrencies()
+    ]);
+
+    const timezoneOptions = timezones.map(tz => 
+        `<option value="${tz}" ${parent.timezone === tz ? 'selected' : ''}>${tz}</option>`
+    ).join('');
+
+    const currencyOptions = currencies.map(curr => 
+        `<option value="${curr}" ${parent.currency === curr ? 'selected' : ''}>${curr}</option>`
+    ).join('');
+
+    return `
+        <div class="max-w-3xl mx-auto">
+            <h2 class="text-2xl font-bold mb-6">Parent Profile</h2>
+            <div class="bg-gray-800 p-6 rounded-lg shadow-md">
+                <h3 class="text-xl font-semibold mb-4 text-indigo-300">Personal Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400">First Name</label>
+                        <input type="text" id="profile-first-name" value="${parent.first_name || ''}" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400">Last Name</label>
+                        <input type="text" id="profile-last-name" value="${parent.last_name || ''}" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-400">Email</label>
+                        <input type="email" id="profile-email" value="${parent.email || ''}" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400">Timezone</label>
+                        <select id="profile-timezone" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600">
+                            <option value="">Select Timezone</option>
+                            ${timezoneOptions}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400">Currency</label>
+                        <select id="profile-currency" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600">
+                            <option value="">Select Currency</option>
+                            ${currencyOptions}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400">Password</label>
+                        <input type="password" disabled placeholder="Change Password coming soon..." class="w-full mt-1 p-2 bg-gray-900 text-gray-500 rounded-md border border-gray-800 cursor-not-allowed">
+                    </div>
+                </div>
+                <div class="mt-6 text-right">
+                    <button id="save-parent-profile-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md transition duration-300">
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 async function renderTeacherProfile() {

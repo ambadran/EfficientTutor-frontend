@@ -1,6 +1,6 @@
 // --- IMPORTS ---
 import { appState, config } from './config.js';
-import { checkBackendStatus, postStudent, deleteStudentRequest, fetchStudent, deleteNote, deleteMeetingLink, updateTeacher, addTeacherSpecialty, deleteTeacherSpecialty } from './api.js';
+import { checkBackendStatus, postStudent, deleteStudentRequest, fetchStudent, deleteNote, deleteMeetingLink, updateTeacher, updateParent, addTeacherSpecialty, deleteTeacherSpecialty } from './api.js';
 // UPDATED: Removed 'loadInitialData' from this import
 import { checkAuthState, handleLogin, handleSignup, handleLogout } from './auth.js';
 import { navigateTo, renderPage } from './ui/navigation.js';
@@ -105,6 +105,42 @@ async function handleUpdateTeacherProfile() {
         renderPage(); // Refresh to confirm values
     } catch (error) {
         console.error("Profile update error:", error);
+        showStatusMessage('error', error.message);
+    }
+}
+
+async function handleUpdateParentProfile() {
+    const firstName = document.getElementById('profile-first-name').value.trim();
+    const lastName = document.getElementById('profile-last-name').value.trim();
+    const email = document.getElementById('profile-email').value.trim();
+    const timezone = document.getElementById('profile-timezone').value;
+    const currency = document.getElementById('profile-currency').value;
+
+    if (!firstName || !lastName || !email) {
+        showStatusMessage('error', 'Name and Email are required.');
+        return;
+    }
+
+    const updateData = {
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        timezone: timezone || null,
+        currency: currency || null
+    };
+
+    showLoadingOverlay('Updating Profile...');
+    try {
+        await updateParent(appState.currentUser.id, updateData);
+        
+        appState.currentUser.first_name = firstName;
+        appState.currentUser.last_name = lastName;
+        appState.currentUser.email = email;
+
+        showStatusMessage('success', 'Profile updated successfully.');
+        renderPage();
+    } catch (error) {
+        console.error("Parent profile update error:", error);
         showStatusMessage('error', error.message);
     }
 }
@@ -512,6 +548,10 @@ document.body.addEventListener('click', (e) => {
     // --- Profile Page (Teacher) ---
     if (closest('#save-teacher-profile-btn')) {
         handleUpdateTeacherProfile();
+    }
+
+    if (closest('#save-parent-profile-btn')) {
+        handleUpdateParentProfile();
     }
 
     if (closest('#open-add-specialty-modal-btn')) {

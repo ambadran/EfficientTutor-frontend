@@ -211,6 +211,7 @@ export const deleteNote = (noteId) => apiRequest(`/notes/${noteId}`, {
 
 // --- User Management & Profiles ---
 export const fetchTeacher = (teacherId) => apiRequest(`/teachers/${teacherId}`);
+export const fetchParent = (parentId) => apiRequest(`/parents/${parentId}`);
 
 export const updateTeacher = (id, data) => apiRequest(`/teachers/${id}`, {
     method: 'PATCH', body: JSON.stringify(data)
