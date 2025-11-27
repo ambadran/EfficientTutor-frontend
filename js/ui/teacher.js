@@ -20,6 +20,7 @@ import {
 } from '../api.js';
 import { showModal, closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay } from './modals.js';
 import { renderPage } from './navigation.js';
+import { renderStudentProfile } from './profile.js';
 
 // #region Utilities
 function formatDate(gmtString) {
@@ -602,5 +603,43 @@ export function showMeetingLinkDetailsModal(tuition) {
             <button id="modal-close-btn" class="p-2 px-4 text-sm bg-gray-600 hover:bg-gray-500 rounded-md">Close</button>
         </div>`;
     showModal('Meeting Link Details', body, footer);
+}
+// #endregion
+
+// #region Teacher Student Info (Updated)
+export async function renderTeacherStudentInfoPage() {
+    try {
+        showLoadingOverlay('Loading Students...');
+        const students = await fetchStudents();
+        hideStatusOverlay();
+
+        if (students.length === 0) {
+            return `<div class="text-center text-gray-400 p-8">You have no students assigned yet.</div>`;
+        }
+
+        // Create options for the dropdown
+        const options = students.map(s => `<option value="${s.id}">${s.first_name} ${s.last_name} (Grade ${s.grade})</option>`).join('');
+
+        return `
+            <div class="space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold">Student Information</h2>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-lg">
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Select Student to Manage</label>
+                    <select id="teacher-student-selector" class="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="">-- Select a Student --</option>
+                        ${options}
+                    </select>
+                </div>
+                <div id="teacher-student-profile-container">
+                    <div class="text-center text-gray-500 py-8">Select a student above to view and edit their details.</div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error("Error rendering teacher student info page:", error);
+        return `<div class="text-center text-red-400 p-8">Error loading student information: ${error.message}</div>`;
+    }
 }
 // #endregion

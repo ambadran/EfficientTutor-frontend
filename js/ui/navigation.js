@@ -6,12 +6,11 @@ import {
     renderLogsPage, 
     renderSettingsPage,
     renderTuitionsPage,
-    renderTeacherTimetablesPage,
-    renderTeacherStudentInfoPage
+    renderTeacherTimetablesPage
 } from './templates.js';
 import { renderTimetablePage } from './timetable.js';
 import { displayGlobalError } from './layout.js';
-import { renderTeacherTuitionLogsPage, renderTeacherPaymentLogsPage } from './teacher.js';
+import { renderTeacherTuitionLogsPage, renderTeacherPaymentLogsPage, renderTeacherStudentInfoPage } from './teacher.js';
 import { renderNotesPage } from './notes.js';
 import { renderProfilePage } from './profile.js';
 
@@ -84,7 +83,7 @@ export async function renderPage() {
                 break;
             case 'teacher-student-info':
                 pageTitle.textContent = 'Student Info';
-                content = renderTeacherStudentInfoPage();
+                content = await renderTeacherStudentInfoPage();
                 break;
 
             case 'teacher-payment-logs':

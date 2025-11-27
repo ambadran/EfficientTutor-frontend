@@ -1,7 +1,6 @@
 // --- IMPORTS ---
 import { appState, config } from './config.js';
 import { checkBackendStatus, postStudent, deleteStudentRequest, fetchStudent, deleteNote, deleteMeetingLink, updateTeacher, updateParent, addTeacherSpecialty, deleteTeacherSpecialty } from './api.js';
-// UPDATED: Removed 'loadInitialData' from this import
 import { checkAuthState, handleLogin, handleSignup, handleLogout } from './auth.js';
 import { navigateTo, renderPage } from './ui/navigation.js';
 import { toggleSidebar, displayGlobalError, initializeLayout } from './ui/layout.js';
@@ -10,6 +9,7 @@ import { confirmDeleteStudent } from './ui/templates.js';
 import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback, showModal, showConfirmDialog } from './ui/modals.js';
 import { renderTeacherTuitionLogsPage, handleVoidLog, showChargesDetail, showAddTuitionLogModal, renderTeacherPaymentLogsPage, showAddPaymentLogModal, handleVoidPaymentLog, showMeetingLinkModal, showMeetingLinkDetailsModal } from './ui/teacher.js';
 import { renderNotesList, showCreateNoteModal, showUpdateNoteModal } from './ui/notes.js';
+import { renderStudentProfile, handleSaveStudentProfile, showAddSubjectModal, handleRemoveSubject } from './ui/profile.js';
 
 // --- STATE FOR WIZARD ---
 let pendingSpecialties = [];
@@ -20,9 +20,7 @@ async function handleSaveStudent(studentData) {
     showLoadingOverlay('Saving student data...');
     try {
         await postStudent(appState.currentUser.id, studentData);
-        // Note: isFirstSignIn logic might need adjustment depending on backend JWT flow
-        // Removed the direct manipulation of isFirstSignIn here as checkAuthState handles user data fetch
-        await checkAuthState(); // Refresh state after saving
+        await checkAuthState(); 
         closeModal();
         showStatusMessage('success', 'Student saved successfully!');
         navigateTo('student-info');
@@ -37,9 +35,9 @@ async function handleDeleteStudent(studentId) {
     showLoadingOverlay('Deleting student...');
     try {
         await deleteStudentRequest(studentId);
-        await checkAuthState(); // Refresh state after deleting
+        await checkAuthState(); 
         showStatusMessage('success', 'Student deleted.');
-        renderPage(); // Re-render the current page (student info)
+        renderPage(); 
     } catch (error) {
         console.error("Error deleting student:", error);
         showStatusMessage('error', error.message);
@@ -72,7 +70,7 @@ async function handleViewCredentials(studentId) {
     }
 }
 
-async function handleUpdateTeacherProfile() {
+async function handleUpdateTeacherProfile(userId) {
     const firstName = document.getElementById('profile-first-name').value.trim();
     const lastName = document.getElementById('profile-last-name').value.trim();
     const email = document.getElementById('profile-email').value.trim();
@@ -94,22 +92,23 @@ async function handleUpdateTeacherProfile() {
 
     showLoadingOverlay('Updating Profile...');
     try {
-        await updateTeacher(appState.currentUser.id, updateData);
+        await updateTeacher(userId, updateData);
         
-        // Update local state slightly (though renderPage will fetch fresh data usually)
-        appState.currentUser.first_name = firstName;
-        appState.currentUser.last_name = lastName;
-        appState.currentUser.email = email;
+        if (appState.currentUser && appState.currentUser.id === userId) {
+            appState.currentUser.first_name = firstName;
+            appState.currentUser.last_name = lastName;
+            appState.currentUser.email = email;
+        }
 
         showStatusMessage('success', 'Profile updated successfully.');
-        renderPage(); // Refresh to confirm values
+        renderPage(); 
     } catch (error) {
         console.error("Profile update error:", error);
         showStatusMessage('error', error.message);
     }
 }
 
-async function handleUpdateParentProfile() {
+async function handleUpdateParentProfile(userId) {
     const firstName = document.getElementById('profile-first-name').value.trim();
     const lastName = document.getElementById('profile-last-name').value.trim();
     const email = document.getElementById('profile-email').value.trim();
@@ -131,11 +130,13 @@ async function handleUpdateParentProfile() {
 
     showLoadingOverlay('Updating Profile...');
     try {
-        await updateParent(appState.currentUser.id, updateData);
+        await updateParent(userId, updateData);
         
-        appState.currentUser.first_name = firstName;
-        appState.currentUser.last_name = lastName;
-        appState.currentUser.email = email;
+        if (appState.currentUser && appState.currentUser.id === userId) {
+            appState.currentUser.first_name = firstName;
+            appState.currentUser.last_name = lastName;
+            appState.currentUser.email = email;
+        }
 
         showStatusMessage('success', 'Profile updated successfully.');
         renderPage();
@@ -145,7 +146,7 @@ async function handleUpdateParentProfile() {
     }
 }
 
-function showAddSpecialtyModal() {
+function showAddSpecialtyModal(teacherId) {
     const subjectOptions = config.noteSubjects.map(s => `<option value="${s}">${s}</option>`).join('');
     const systemOptions = config.educationalSystems.map(s => `<option value="${s}">${s}</option>`).join('');
 
@@ -187,7 +188,7 @@ function showAddSpecialtyModal() {
 
             showLoadingOverlay('Adding specialty...');
             try {
-                await addTeacherSpecialty(appState.currentUser.id, {
+                await addTeacherSpecialty(teacherId, {
                     subject: subject,
                     educational_system: system,
                     grade: grade
@@ -210,12 +211,12 @@ function validateAuthForm(isSignup = false) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     let firstName = null;
     let lastName = null;
-    let role = null; // Add role variable
+    let role = null; 
 
     if (isSignup) {
         firstName = document.getElementById('firstName').value.trim();
         lastName = document.getElementById('lastName').value.trim();
-        role = document.getElementById('role').value; // Get role value
+        role = document.getElementById('role').value; 
         if (!firstName || !lastName) {
             showAuthFeedback("First name and last name cannot be empty for signup.");
             return null;
@@ -230,12 +231,12 @@ function validateAuthForm(isSignup = false) {
         showAuthFeedback("Please enter a valid email address.");
         return null;
     }
-    if (password.length < 6) { // Basic password length check
+    if (password.length < 6) { 
          showAuthFeedback("Password must be at least 6 characters long.");
          return null;
     }
 
-    return { email, password, firstName, lastName, role }; // Return role
+    return { email, password, firstName, lastName, role }; 
 }
 
 // --- Auth Mode Toggle ---
@@ -244,16 +245,14 @@ function toggleAuthMode(isSignup) {
     const title = document.getElementById('auth-title');
     const firstNameGroup = document.getElementById('first-name-group');
     const lastNameGroup = document.getElementById('last-name-group');
-    const roleGroup = document.getElementById('role-group'); // Get the new role group
+    const roleGroup = document.getElementById('role-group'); 
     const actionBtn = document.getElementById('auth-action-btn');
     const toggleBtn = document.getElementById('auth-toggle-btn');
     
-    // Reset steps visibility
     document.getElementById('step-1-container').classList.remove('hidden');
     document.getElementById('step-2-container').classList.add('hidden');
     document.getElementById('auth-back-btn').classList.add('hidden');
     
-    // Reset pending data
     pendingSpecialties = [];
     renderSpecialtiesList();
 
@@ -261,19 +260,19 @@ function toggleAuthMode(isSignup) {
         title.textContent = "Create Account - Sign Up";
         firstNameGroup.classList.remove('hidden');
         lastNameGroup.classList.remove('hidden');
-        roleGroup.classList.remove('hidden'); // Show role group
-        actionBtn.textContent = 'Sign Up'; // Or Next, handled dynamically
+        roleGroup.classList.remove('hidden'); 
+        actionBtn.textContent = 'Sign Up'; 
         toggleBtn.textContent = 'Already have an account? Log In';
-        actionBtn.dataset.mode = 'signup'; // Store mode in data attribute
-        updateSignupButtonText(); // Check if we need to show "Next" or "Sign Up"
+        actionBtn.dataset.mode = 'signup'; 
+        updateSignupButtonText(); 
     } else {
         title.textContent = "Welcome - Log In";
         firstNameGroup.classList.add('hidden');
         lastNameGroup.classList.add('hidden');
-        roleGroup.classList.add('hidden'); // Hide role group
+        roleGroup.classList.add('hidden'); 
         actionBtn.textContent = 'Login';
         toggleBtn.textContent = 'Need an account? Sign Up';
-        actionBtn.dataset.mode = 'login'; // Store mode in data attribute
+        actionBtn.dataset.mode = 'login'; 
     }
 }
 
@@ -308,10 +307,6 @@ function renderSpecialtiesList() {
         container.innerHTML = '<p class="text-center text-gray-500 text-sm py-2">No specialties added yet.</p>';
         return;
     }
-    
-    // Group by Subject for better display? Or just list them. Let's list them simply for now.
-    // Actually, grouping by Subject + System makes sense to show the range.
-    // But simpler: Just show chips.
     
     const itemsHTML = pendingSpecialties.map((spec, index) => `
         <div class="flex justify-between items-center bg-gray-800 p-2 rounded text-sm border border-gray-600">
@@ -395,26 +390,21 @@ document.body.addEventListener('click', (e) => {
         const to = parseInt(document.getElementById('specialty-grade-to').value);
 
         if (!subject || !system || isNaN(from) || isNaN(to)) {
-            // Basic validation
             return; 
         }
         
         if (from < 1 || to > 12 || from > to) {
-             // Logic validation
              alert("Invalid grade range (1-12).");
              return;
         }
 
-        // Generate Range
         for (let g = from; g <= to; g++) {
-            // Avoid duplicates
             const exists = pendingSpecialties.some(s => s.subject === subject && s.educational_system === system && s.grade === g);
             if (!exists) {
                 pendingSpecialties.push({ subject: subject, educational_system: system, grade: g });
             }
         }
         renderSpecialtiesList();
-        // Reset inputs
         document.getElementById('specialty-grade-from').value = '';
         document.getElementById('specialty-grade-to').value = '';
     }
@@ -499,13 +489,13 @@ document.body.addEventListener('click', (e) => {
             deleteMeetingLink(tuitionId)
                 .then(() => {
                     showStatusMessage('success', 'Meeting link deleted.');
-                    renderPage(); // Re-render the page to show the change
+                    renderPage(); 
                 })
                 .catch(err => {
                     showStatusMessage('error', `Failed to delete link: ${err.message}`);
                 })
                 .finally(() => {
-                    closeModal(); // Close the details modal if it's open
+                    closeModal(); 
                 });
         });
     }
@@ -545,34 +535,68 @@ document.body.addEventListener('click', (e) => {
         renderPage();
     }
 
-    // --- Profile Page (Teacher) ---
+    // --- Profile Page (Teacher/Parent) ---
     if (closest('#save-teacher-profile-btn')) {
-        handleUpdateTeacherProfile();
+        handleUpdateTeacherProfile(closest('#save-teacher-profile-btn').dataset.userId);
     }
 
     if (closest('#save-parent-profile-btn')) {
-        handleUpdateParentProfile();
+        handleUpdateParentProfile(closest('#save-parent-profile-btn').dataset.userId);
     }
 
     if (closest('#open-add-specialty-modal-btn')) {
-        showAddSpecialtyModal();
+        showAddSpecialtyModal(closest('#open-add-specialty-modal-btn').dataset.userId);
     }
 
     const deleteSpecialtyBtn = closest('.delete-specialty-btn');
     if (deleteSpecialtyBtn) {
         const specialtyId = deleteSpecialtyBtn.dataset.id;
+        const teacherId = deleteSpecialtyBtn.dataset.teacherId;
         showConfirmDialog('Delete Specialty', 'Are you sure you want to remove this specialty?', async () => {
             showLoadingOverlay('Deleting specialty...');
             try {
-                await deleteTeacherSpecialty(appState.currentUser.id, specialtyId);
+                await deleteTeacherSpecialty(teacherId, specialtyId);
                 showStatusMessage('success', 'Specialty removed.');
-                renderPage(); // Reload profile to reflect changes
+                renderPage(); 
             } catch (error) {
                 showStatusMessage('error', error.message);
             }
         });
     }
 
+    // --- Student Management (New) ---
+    if (closest('#btn-create-student')) {
+        // Open Create Mode
+        renderStudentProfile(null, 'create').then(html => {
+             document.getElementById('page-content').innerHTML = html;
+        });
+    }
+
+    const viewStudentBtn = closest('.btn-view-student');
+    if (viewStudentBtn) {
+        const studentId = viewStudentBtn.dataset.id;
+        renderStudentProfile(studentId, 'edit').then(html => {
+             document.getElementById('page-content').innerHTML = html;
+        });
+    }
+
+    if (closest('#save-student-btn')) {
+        const btn = closest('#save-student-btn');
+        handleSaveStudentProfile(btn.dataset.studentId, btn.dataset.mode);
+    }
+
+    if (closest('#add-student-subject-btn')) {
+        showAddSubjectModal(closest('#add-student-subject-btn').dataset.studentId);
+    }
+
+    const removeSubjectBtn = closest('.remove-subject-btn');
+    if (removeSubjectBtn) {
+        handleRemoveSubject(removeSubjectBtn.dataset.studentId, parseInt(removeSubjectBtn.dataset.subjectIndex));
+    }
+
+    if (closest('#cancel-create-student-btn')) {
+        renderPage(); 
+    }
 
     // Timetable Page Specific
     const mainTimetable = closest('#page-content .timetable-component');
@@ -591,7 +615,7 @@ document.body.addEventListener('click', (e) => {
 document.getElementById('page-content').addEventListener('change', (e) => {
     if (e.target.id === 'student-selector') {
         appState.currentStudent = appState.students.find(s => s.id === e.target.value) || null;
-        renderPage(); // Re-render the timetable/logs page for the selected student
+        renderPage(); 
     }
     // NEW: Listener for the Notes student selector
     if (e.target.id === 'notes-student-selector') {
@@ -601,6 +625,18 @@ document.getElementById('page-content').addEventListener('change', (e) => {
     // NEW: Listener for Role change on Signup
     if (e.target.id === 'role') {
         updateSignupButtonText();
+    }
+    // Teacher Student Selector
+    if (e.target.id === 'teacher-student-selector') {
+        const studentId = e.target.value;
+        const container = document.getElementById('teacher-student-profile-container');
+        if (studentId) {
+            renderStudentProfile(studentId, 'edit').then(html => {
+                container.innerHTML = html;
+            });
+        } else {
+            container.innerHTML = '<div class="text-center text-gray-500 py-8">Select a student above to view and edit their details.</div>';
+        }
     }
 });
 

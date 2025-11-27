@@ -259,3 +259,4 @@ export const fetchTeachersBySpecialty = (subject, educationalSystem, grade) => {
     const query = new URLSearchParams(params).toString();
     return apiRequest(`/teachers/by_specialty?${query}`);
 };
+// --- Metadata (TODO: Replace with actual endpoints) ---

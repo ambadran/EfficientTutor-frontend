@@ -154,30 +154,57 @@ export function confirmDeleteStudent(student, onDeleteCallback) {
     });
 }
 
+import { renderStudentProfile } from './profile.js';
+
+// ... existing imports ...
+
 export function renderStudentInfoPage() {
-    let studentListHTML = appState.students.map(student => `
-        <div class="bg-gray-800 p-4 rounded-lg flex items-center justify-between">
-            <div>
-                <p class="font-semibold text-lg">${student.firstName} ${student.lastName}</p>
-                <p class="text-sm text-gray-400">Grade: ${student.grade}</p>
-            </div>
-            <div class="space-x-2">
-                <button title="View Credentials" class="view-creds-btn p-2 bg-blue-600 hover:bg-blue-500 rounded-md" data-id="${student.id}"><i class="fas fa-key"></i></button>
-                <button title="Edit Student" class="edit-student-btn p-2 bg-gray-600 hover:bg-gray-500 rounded-md" data-id="${student.id}"><i class="fas fa-edit"></i></button>
-                <button title="Delete Student" class="delete-student-btn p-2 bg-red-600 hover:bg-red-500 rounded-md" data-id="${student.id}"><i class="fas fa-trash"></i></button>
-            </div>
-        </div>`).join('');
-    
     if (appState.students.length === 0) {
-        studentListHTML = `<p class="text-center text-gray-400 py-8">No students registered yet. Add one to get started!</p>`;
+        return `
+            <div class="text-center py-12">
+                <i class="fas fa-user-graduate text-6xl text-gray-600 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-300">No Students Yet</h3>
+                <p class="text-gray-500 mb-6">Add your children to start managing their schedule.</p>
+                <button id="btn-create-student" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-md transition duration-300">
+                    <i class="fas fa-plus mr-2"></i> Add New Student
+                </button>
+            </div>`;
     }
 
+    const studentCards = appState.students.map(s => `
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg hover:bg-gray-750 transition duration-300 border border-gray-700 flex flex-col">
+            <div class="flex justify-between items-start mb-4">
+                <div class="bg-indigo-900/50 p-3 rounded-full">
+                    <i class="fas fa-user-graduate text-2xl text-indigo-400"></i>
+                </div>
+                <span class="px-2 py-1 text-xs rounded-full bg-gray-700 text-gray-300 border border-gray-600">${s.status || 'Active'}</span>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-1">${s.first_name} ${s.last_name}</h3>
+            <p class="text-gray-400 text-sm mb-4">Grade ${s.grade}</p>
+            
+            <div class="mt-auto pt-4 border-t border-gray-700 flex justify-between items-center">
+                <span class="text-xs text-gray-500">${(s.student_subjects || []).length} Subjects</span>
+                <button class="btn-view-student text-indigo-400 hover:text-indigo-300 text-sm font-semibold" data-id="${s.id}">
+                    Manage <i class="fas fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+
     return `
-        <div class="space-y-4">${studentListHTML}</div>
-        <button id="add-new-student-btn" class="mt-6 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-md transition duration-300 flex items-center justify-center">
-            <i class="fas fa-plus mr-2"></i> Add New Student
-        </button>`;
+        <div class="space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-bold">My Students</h2>
+                <button id="btn-create-student" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-2 px-4 rounded-md">
+                    <i class="fas fa-plus mr-2"></i> Add New
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                ${studentCards}
+            </div>
+        </div>`;
 }
+
 
 export async function renderLogsPage() {
     if (!appState.currentUser) {
@@ -481,25 +508,4 @@ export async function renderTeacherNotesPage() {
 
 export function renderTeacherTimetablesPage() {
     return `<div class="p-8 text-center text-gray-400">The Timetables feature for teachers is not yet implemented.</div>`;
-}
-export async function renderTeacherStudentInfoPage() {
-    try {
-        const students = await fetchStudents();
-        let studentListHTML = students.map(student => `
-            <div class="bg-gray-800 p-4 rounded-lg flex items-center justify-between">
-                <div>
-                    <p class="font-semibold text-lg">${student.first_name} ${student.last_name}</p>
-                    <p class="text-sm text-gray-400">Grade: ${student.grade}</p>
-                </div>
-            </div>`).join('');
-
-        if (students.length === 0) {
-            studentListHTML = `<p class="text-center text-gray-400 py-8">No students found.</p>`;
-        }
-
-        return `<div class="space-y-4">${studentListHTML}</div>`;
-    } catch (error) {
-        console.error("Error rendering teacher student info page:", error);
-        return `<div class="text-center text-red-400 p-8">Error loading student information: ${error.message}</div>`;
-    }
 }
