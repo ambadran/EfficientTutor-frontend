@@ -9,6 +9,7 @@ export const config = {
     // NEW: Enums for the notes feature, from the backend spec
     noteSubjects: ["Math", "Physics", "Chemistry", "Biology", "IT", "Geography"],
     noteTypes: ["STUDY_NOTES", "HOMEWORK", "PAST_PAPERS"],
+    educationalSystems: ["IGCSE", "SAT", "National-EG", "National-KW"], // NEW
     colors: {
         school: 'var(--school-color)',
         sports: 'var(--sports-color)',

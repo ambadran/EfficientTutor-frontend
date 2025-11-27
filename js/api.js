@@ -87,11 +87,23 @@ export async function loginUser(email, password) {
     return data;
 }
 
-export const signupUser = (email, password, firstName, lastName, role) => {
+export const signupUser = (email, password, firstName, lastName, role, specialties = []) => {
     const endpoint = role === 'parent' ? '/auth/signup/parent' : '/auth/signup/teacher';
+    
+    const payload = { 
+        email, 
+        password, 
+        first_name: firstName, 
+        last_name: lastName 
+    };
+
+    if (role === 'teacher') {
+        payload.teacher_specialties = specialties;
+    }
+
     return apiRequest(endpoint, {
         method: 'POST',
-        body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName, role })
+        body: JSON.stringify(payload)
     });
 };
 
@@ -196,3 +208,53 @@ export const updateNote = (noteId, noteData) => apiRequest(`/notes/${noteId}`, {
 export const deleteNote = (noteId) => apiRequest(`/notes/${noteId}`, {
     method: 'DELETE'
 });
+
+// --- User Management & Profiles ---
+export const fetchTeacher = (teacherId) => apiRequest(`/teachers/${teacherId}`);
+
+export const updateTeacher = (id, data) => apiRequest(`/teachers/${id}`, {
+    method: 'PATCH', body: JSON.stringify(data)
+});
+export const updateParent = (id, data) => apiRequest(`/parents/${id}`, {
+    method: 'PATCH', body: JSON.stringify(data)
+});
+export const updateStudent = (id, data) => apiRequest(`/students/${id}`, {
+    method: 'PATCH', body: JSON.stringify(data)
+});
+
+// --- Metadata (TODO: Replace with actual endpoints) ---
+export const fetchTimezones = async () => {
+    // TODO: Replace with backend endpoint when available
+    return Promise.resolve([
+        "UTC", 
+        "Asia/Kuwait", 
+        "Asia/Riyadh", 
+        "Asia/Dubai", 
+        "Europe/London", 
+        "America/New_York"
+    ]);
+};
+
+export const fetchCurrencies = async () => {
+    // TODO: Replace with backend endpoint when available
+    return Promise.resolve(["KWD", "USD", "EUR", "GBP", "SAR", "AED"]);
+};
+
+// --- Teacher Specialties ---
+export const addTeacherSpecialty = (teacherId, specialtyData) => apiRequest(`/teachers/${teacherId}/specialties`, {
+    method: 'POST',
+    body: JSON.stringify(specialtyData) // Expects { subject, educational_system, grade }
+});
+
+export const deleteTeacherSpecialty = (teacherId, specialtyId) => apiRequest(`/teachers/${teacherId}/specialties/${specialtyId}`, {
+    method: 'DELETE'
+});
+
+export const fetchTeacherSpecialties = (teacherId) => apiRequest(`/teachers/${teacherId}/specialties`);
+
+export const fetchTeachersBySpecialty = (subject, educationalSystem, grade) => {
+    const params = { subject, educational_system: educationalSystem };
+    if (grade) params.grade = grade;
+    const query = new URLSearchParams(params).toString();
+    return apiRequest(`/teachers/by_specialty?${query}`);
+};

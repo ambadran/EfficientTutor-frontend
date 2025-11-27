@@ -13,6 +13,7 @@ import { renderTimetablePage } from './timetable.js';
 import { displayGlobalError } from './layout.js';
 import { renderTeacherTuitionLogsPage, renderTeacherPaymentLogsPage } from './teacher.js';
 import { renderNotesPage } from './notes.js';
+import { renderProfilePage } from './profile.js';
 
 const pageContent = document.getElementById('page-content');
 const pageTitle = document.getElementById('page-title');
@@ -89,6 +90,11 @@ export async function renderPage() {
             case 'teacher-payment-logs':
                 pageTitle.textContent = 'Payment Logs';
                 content = await renderTeacherPaymentLogsPage(); // Use the new function
+                break;
+            
+            case 'profile':
+                pageTitle.textContent = 'Profile';
+                content = await renderProfilePage();
                 break;
 
             default:

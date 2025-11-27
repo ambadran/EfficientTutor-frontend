@@ -15,7 +15,8 @@ import {
     updateMeetingLink,
     deleteMeetingLink,
     fetchStudents,
-    fetchTuitions
+    fetchTuitions,
+    fetchTeacherSpecialties
 } from '../api.js';
 import { showModal, closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay } from './modals.js';
 import { renderPage } from './navigation.js';
@@ -134,31 +135,67 @@ export function showChargesDetail(logId) {
 export async function showAddTuitionLogModal(logToCorrect = null) {
     const isCorrection = logToCorrect !== null;
     let logData = {};
+
     const _renderFinalStep = () => {
         const now = new Date();
         const startTimeDefault = logToCorrect?.start_time || logData.scheduled_start_time || now.toISOString();
         const endTimeDefault = logToCorrect?.end_time || logData.scheduled_end_time || new Date(now.getTime() + 60 * 60 * 1000).toISOString();
         const startTimeValue = new Date(startTimeDefault).toISOString().slice(0, 16);
         const endTimeValue = new Date(endTimeDefault).toISOString().slice(0, 16);
+        
         let customDetailsHTML = '';
+        let subjectDisplay = logData.subject;
+
         if (logData.log_type === 'custom') {
             const studentCosts = logData.charges.map(c => {
                 const name = c.student_name || logData.all_students.find(s => s.id === c.student_id).first_name;
                 return `${name} (${c.cost} kwd)`;
             }).join(', ');
             customDetailsHTML = `<div><p class="text-sm text-gray-400">Attendees: <span class="font-semibold text-gray-200">${studentCosts}</span></p></div>`;
+            
+            // Enhance subject display for custom logs
+            if (logData.educational_system && logData.grade) {
+                subjectDisplay = `${logData.subject} (${logData.educational_system} - Grade ${logData.grade})`;
+            }
         } else {
             customDetailsHTML = `<div><p class="text-sm text-gray-400">Attendees: <span class="font-semibold text-gray-200">${logData.student_names.join(', ')}</span></p></div>`;
         }
-        const body = `<div class="space-y-4"><div><p class="text-sm text-gray-400">Subject: <span class="font-semibold text-gray-200">${logData.subject}</span></p></div>${customDetailsHTML}${logData.log_type === 'custom' ? `<div><label class="text-sm text-gray-400">Lesson Index</label><input type="number" id="log-lesson-index" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${logToCorrect?.lesson_index || 1}" min="1"></div>` : ''}<div class="grid grid-cols-2 gap-4"><div><label class="text-sm text-gray-400">Start Time</label><input type="datetime-local" id="log-start-time" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${startTimeValue}"></div><div><label class="text-sm text-gray-400">End Time</label><input type="datetime-local" id="log-end-time" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${endTimeValue}"></div></div></div>`;
+
+        const body = `
+            <div class="space-y-4">
+                <div><p class="text-sm text-gray-400">Subject: <span class="font-semibold text-gray-200">${subjectDisplay}</span></p></div>
+                ${customDetailsHTML}
+                ${logData.log_type === 'custom' ? `<div><label class="text-sm text-gray-400">Lesson Index</label><input type="number" id="log-lesson-index" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${logToCorrect?.lesson_index || 1}" min="1"></div>` : ''}
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-sm text-gray-400">Start Time</label><input type="datetime-local" id="log-start-time" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${startTimeValue}"></div>
+                    <div><label class="text-sm text-gray-400">End Time</label><input type="datetime-local" id="log-end-time" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" value="${endTimeValue}"></div>
+                </div>
+            </div>`;
+            
         const footer = `<div class="flex justify-end"><button id="submit-log-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Submit</button></div>`;
+        
         showModal(isCorrection ? 'Correct Tuition Log' : 'Add Tuition Log', body, footer, (modal) => {
             modal.querySelector('#submit-log-btn').addEventListener('click', async () => {
                 let finalLogData = {};
                 if (logData.log_type === 'scheduled') {
-                    finalLogData = { log_type: "SCHEDULED", tuition_id: logData.tuition_id, start_time: new Date(modal.querySelector('#log-start-time').value).toISOString(), end_time: new Date(modal.querySelector('#log-end-time').value).toISOString() };
+                    finalLogData = { 
+                        log_type: "SCHEDULED", 
+                        tuition_id: logData.tuition_id, 
+                        start_time: new Date(modal.querySelector('#log-start-time').value).toISOString(), 
+                        end_time: new Date(modal.querySelector('#log-end-time').value).toISOString() 
+                    };
                 } else {
-                    finalLogData = { log_type: "CUSTOM", teacher_id: appState.currentUser.id, subject: logData.subject, lesson_index: parseInt(modal.querySelector('#log-lesson-index').value), start_time: new Date(modal.querySelector('#log-start-time').value).toISOString(), end_time: new Date(modal.querySelector('#log-end-time').value).toISOString(), charges: logData.charges };
+                    finalLogData = { 
+                        log_type: "CUSTOM", 
+                        teacher_id: appState.currentUser.id, 
+                        subject: logData.subject,
+                        educational_system: logData.educational_system, // Added
+                        grade: logData.grade, // Added
+                        lesson_index: parseInt(modal.querySelector('#log-lesson-index').value), 
+                        start_time: new Date(modal.querySelector('#log-start-time').value).toISOString(), 
+                        end_time: new Date(modal.querySelector('#log-end-time').value).toISOString(), 
+                        charges: logData.charges 
+                    };
                 }
                 showLoadingOverlay('Saving log...');
                 try {
@@ -176,6 +213,7 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
             });
         });
     };
+
     const _renderScheduledPicker = async () => {
         showLoadingOverlay('Fetching tuitions...');
         try {
@@ -208,12 +246,18 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
             showStatusMessage('error', error.message);
         }
     };
+
     const _renderCustomForm = async () => {
         showLoadingOverlay('Fetching data...');
         try {
-            const [students, tuitions] = await Promise.all([fetchStudents(), fetchTuitions()]);
-            const subjects = [...new Set(tuitions.map(t => t.subject))];
+            // FETCH SPECIALTIES INSTEAD OF TUITIONS FOR SUBJECTS
+            const [students, specialties] = await Promise.all([
+                fetchStudents(), 
+                fetchTeacherSpecialties(appState.currentUser.id)
+            ]);
+            
             hideStatusOverlay();
+            
             const studentsHTML = students.map(s => {
                 const existingCharge = isCorrection ? logToCorrect.charges.find(c => c.student_id === s.id) : null;
                 const isChecked = existingCharge ? 'checked' : '';
@@ -221,23 +265,58 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
                 const isHidden = existingCharge ? '' : 'hidden';
                 return `<label class="flex items-center justify-between p-2 hover:bg-gray-600 rounded-md"><div class="flex items-center space-x-2"><input type="checkbox" class="student-checkbox" data-student-id="${s.id}" data-student-name="${s.first_name}" ${isChecked}><span>${s.first_name} ${s.last_name}</span></div><div class="w-24"><input type="number" class="student-cost-input w-full p-1 bg-gray-800 rounded-md border border-gray-500 text-sm ${isHidden}" placeholder="Cost" step="0.5" value="${costValue}"></div></label>`;
             }).join('');
-            const subjectsHTML = subjects.map(sub => `<option value="${sub}">${sub}</option>`).join('');
-            const body = `<div class="space-y-4"><div><label class="text-sm text-gray-400">Select Students & Set Cost</label><div class="max-h-40 overflow-y-auto space-y-1 mt-1 border border-gray-600 p-2 rounded-md">${studentsHTML}</div></div><div><label class="text-sm text-gray-400">Select Subject</label><select id="custom-subject" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600">${subjectsHTML}</select></div></div>`;
-            const footer = `<div class="flex justify-end"><button id="next-custom-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Next</button></div>`;
+
+            // Create specialty options
+            let specialtyOptionsHTML = '';
+            if (specialties.length === 0) {
+                specialtyOptionsHTML = '<option value="" disabled selected>No specialties found. Please add specialties in your profile.</option>';
+            } else {
+                specialtyOptionsHTML = specialties.map(s => 
+                    `<option value="${s.id}">${s.subject} (${s.educational_system} - Grade ${s.grade})</option>`
+                ).join('');
+            }
+
+            const body = `
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-sm text-gray-400">Select Students & Set Cost</label>
+                        <div class="max-h-40 overflow-y-auto space-y-1 mt-1 border border-gray-600 p-2 rounded-md">${studentsHTML}</div>
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-400">Select Specialty</label>
+                        <select id="custom-specialty" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" ${specialties.length === 0 ? 'disabled' : ''}>
+                            ${specialtyOptionsHTML}
+                        </select>
+                    </div>
+                </div>`;
+                
+            const footer = `<div class="flex justify-end"><button id="next-custom-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md" ${specialties.length === 0 ? 'disabled' : ''}>Next</button></div>`;
+            
             showModal('Add Custom Log', body, footer, (modal) => {
-                if (isCorrection) {
-                    modal.querySelector('#custom-subject').value = logToCorrect.subject;
+                if (isCorrection && logToCorrect.educational_system && logToCorrect.grade) {
+                     // Try to find the matching specialty to pre-select
+                     const matchingSpecialty = specialties.find(s => 
+                        s.subject === logToCorrect.subject && 
+                        s.educational_system === logToCorrect.educational_system && 
+                        s.grade === logToCorrect.grade
+                     );
+                     if (matchingSpecialty) {
+                         modal.querySelector('#custom-specialty').value = matchingSpecialty.id;
+                     }
                 }
+
                 modal.querySelectorAll('.student-checkbox').forEach(checkbox => {
                     checkbox.addEventListener('change', (e) => {
                         const costInput = e.target.closest('label').querySelector('.student-cost-input');
                         costInput.classList.toggle('hidden', !e.target.checked);
                     });
                 });
+
                 modal.querySelector('#next-custom-btn').addEventListener('click', () => {
                     const charges = [];
                     const selectedStudentNames = [];
                     let isValid = true;
+
                     modal.querySelectorAll('.student-checkbox:checked').forEach(checkbox => {
                         if (!isValid) return;
                         const costInput = checkbox.closest('label').querySelector('.student-cost-input');
@@ -250,11 +329,24 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
                         charges.push({ student_id: checkbox.dataset.studentId, cost: cost });
                         selectedStudentNames.push(checkbox.dataset.studentName);
                     });
+
                     if (!isValid || charges.length === 0) {
                         if (isValid) alert('Please select at least one student and enter their cost.');
                         return;
                     }
-                    logData = { log_type: 'custom', charges: charges, student_names: selectedStudentNames, all_students: students, subject: modal.querySelector('#custom-subject').value };
+
+                    const specialtyId = modal.querySelector('#custom-specialty').value;
+                    const selectedSpecialty = specialties.find(s => s.id === specialtyId);
+
+                    logData = { 
+                        log_type: 'custom', 
+                        charges: charges, 
+                        student_names: selectedStudentNames, 
+                        all_students: students, 
+                        subject: selectedSpecialty.subject,
+                        educational_system: selectedSpecialty.educational_system,
+                        grade: selectedSpecialty.grade
+                    };
                     _renderFinalStep();
                 });
             });
@@ -263,9 +355,20 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
             showStatusMessage('error', error.message);
         }
     };
+
     if (isCorrection) {
         const studentNamesFromCharges = (logToCorrect.charges || []).map(c => c.student_name);
-        logData = { log_type: logToCorrect.create_type.toLowerCase(), subject: logToCorrect.subject, student_names: studentNamesFromCharges, tuition_id: logToCorrect.tuition_id, charges: logToCorrect.charges };
+        // Populate initial logData for correction context
+        logData = { 
+            log_type: logToCorrect.create_type.toLowerCase(), 
+            subject: logToCorrect.subject, 
+            educational_system: logToCorrect.educational_system,
+            grade: logToCorrect.grade,
+            student_names: studentNamesFromCharges, 
+            tuition_id: logToCorrect.tuition_id, 
+            charges: logToCorrect.charges 
+        };
+        
         if (logData.log_type === 'custom') {
             await _renderCustomForm();
         } else {

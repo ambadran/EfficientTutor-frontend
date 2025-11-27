@@ -753,6 +753,186 @@
         ]
       }
     },
+    "/teachers/by_specialty": {
+      "get": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Get All By Specialty",
+        "description": "Gets all teachers that match a specific specialty query.",
+        "operationId": "get_all_by_specialty_teachers_by_specialty_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "subject",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SubjectEnum"
+            }
+          },
+          {
+            "name": "educational_system",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/EducationalSystemEnum"
+            }
+          },
+          {
+            "name": "grade",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Grade"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TeacherRead"
+                  },
+                  "title": "Response Get All By Specialty Teachers By Specialty Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/teachers/{teacher_id}/specialties": {
+      "get": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Get Specialties For Teacher",
+        "description": "Retrieves all specialties for a specific teacher.\nAuthorized for the teacher themselves or an admin.",
+        "operationId": "get_specialties_for_teacher_teachers__teacher_id__specialties_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "teacher_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Teacher Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TeacherSpecialtyRead"
+                  },
+                  "title": "Response Get Specialties For Teacher Teachers  Teacher Id  Specialties Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Add Specialty",
+        "description": "Adds a new specialty to a teacher's profile.",
+        "operationId": "add_specialty_teachers__teacher_id__specialties_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "teacher_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Teacher Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeacherSpecialtyWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/teachers/{teacher_id}": {
       "get": {
         "tags": [
@@ -871,6 +1051,58 @@
               "type": "string",
               "format": "uuid",
               "title": "Teacher Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/teachers/{teacher_id}/specialties/{specialty_id}": {
+      "delete": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Delete Specialty",
+        "description": "Deletes a specialty from a teacher's profile.",
+        "operationId": "delete_specialty_teachers__teacher_id__specialties__specialty_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "teacher_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Teacher Id"
+            }
+          },
+          {
+            "name": "specialty_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Specialty Id"
             }
           }
         ],
@@ -2254,6 +2486,15 @@
           "subject": {
             "$ref": "#/components/schemas/SubjectEnum"
           },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
+          },
           "lesson_index": {
             "type": "integer",
             "title": "Lesson Index"
@@ -2280,6 +2521,8 @@
         "required": [
           "log_type",
           "subject",
+          "educational_system",
+          "grade",
           "lesson_index",
           "start_time",
           "end_time",
@@ -2314,6 +2557,16 @@
         ],
         "title": "CustomTuitionChargeInput",
         "description": "Validates a single student charge within a custom log POST request."
+      },
+      "EducationalSystemEnum": {
+        "type": "string",
+        "enum": [
+          "IGCSE",
+          "SAT",
+          "National-EG",
+          "National-KW"
+        ],
+        "title": "EducationalSystemEnum"
       },
       "FinancialSummaryForParent-Input": {
         "properties": {
@@ -3441,7 +3694,9 @@
           "grade": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "maximum": 12,
+                "minimum": 1
               },
               {
                 "type": "null"
@@ -3540,7 +3795,9 @@
           "grade": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "maximum": 12,
+                "minimum": 1
               },
               {
                 "type": "null"
@@ -3620,6 +3877,15 @@
             "format": "uuid",
             "title": "Teacher Id"
           },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
+          },
           "shared_with_student_ids": {
             "items": {
               "type": "string",
@@ -3634,7 +3900,9 @@
           "id",
           "subject",
           "lessons_per_week",
-          "teacher_id"
+          "teacher_id",
+          "educational_system",
+          "grade"
         ],
         "title": "StudentSubjectRead",
         "description": "Pydantic model for reading a student's subject details.\nCorresponds to db_models.StudentSubjects."
@@ -3648,6 +3916,15 @@
             "type": "string",
             "format": "uuid",
             "title": "Teacher Id"
+          },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
           },
           "lessons_per_week": {
             "type": "integer",
@@ -3666,7 +3943,9 @@
         "type": "object",
         "required": [
           "subject",
-          "teacher_id"
+          "teacher_id",
+          "educational_system",
+          "grade"
         ],
         "title": "StudentSubjectWrite",
         "description": "Pydantic model for creating/updating a student's subject details.\nCorresponds to db_models.StudentSubjects."
@@ -3778,7 +4057,9 @@
           "grade": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "maximum": 12,
+                "minimum": 1
               },
               {
                 "type": "null"
@@ -3848,6 +4129,13 @@
           "last_name": {
             "type": "string",
             "title": "Last Name"
+          },
+          "teacher_specialties": {
+            "items": {
+              "$ref": "#/components/schemas/TeacherSpecialtyWrite"
+            },
+            "type": "array",
+            "title": "Teacher Specialties"
           }
         },
         "type": "object",
@@ -3907,6 +4195,13 @@
           "currency": {
             "type": "string",
             "title": "Currency"
+          },
+          "teacher_specialties": {
+            "items": {
+              "$ref": "#/components/schemas/TeacherSpecialtyRead"
+            },
+            "type": "array",
+            "title": "Teacher Specialties"
           }
         },
         "type": "object",
@@ -3920,6 +4215,60 @@
         ],
         "title": "TeacherRead",
         "description": "Pydantic model for reading a Teacher."
+      },
+      "TeacherSpecialtyRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/SubjectEnum"
+          },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "subject",
+          "educational_system",
+          "grade"
+        ],
+        "title": "TeacherSpecialtyRead",
+        "description": "Pydantic model for reading a teacher's specialty.\nCorresponds to db_models.TeacherSpecialties."
+      },
+      "TeacherSpecialtyWrite": {
+        "properties": {
+          "subject": {
+            "$ref": "#/components/schemas/SubjectEnum"
+          },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "educational_system",
+          "grade"
+        ],
+        "title": "TeacherSpecialtyWrite",
+        "description": "Pydantic model for creating/updating a teacher's specialty."
       },
       "TeacherUpdate": {
         "properties": {
@@ -4110,6 +4459,15 @@
           "subject": {
             "$ref": "#/components/schemas/SubjectEnum"
           },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
+          },
           "start_time": {
             "type": "string",
             "format": "date-time",
@@ -4192,6 +4550,8 @@
         "required": [
           "id",
           "subject",
+          "educational_system",
+          "grade",
           "start_time",
           "end_time",
           "status",
@@ -4213,6 +4573,15 @@
           },
           "subject": {
             "$ref": "#/components/schemas/SubjectEnum"
+          },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
           },
           "start_time": {
             "type": "string",
@@ -4294,6 +4663,8 @@
         "required": [
           "id",
           "subject",
+          "educational_system",
+          "grade",
           "start_time",
           "end_time",
           "status",
@@ -4316,6 +4687,15 @@
           },
           "subject": {
             "$ref": "#/components/schemas/SubjectEnum"
+          },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
           },
           "start_time": {
             "type": "string",
@@ -4385,6 +4765,8 @@
         "required": [
           "id",
           "subject",
+          "educational_system",
+          "grade",
           "start_time",
           "end_time",
           "status",
@@ -4404,6 +4786,15 @@
           },
           "subject": {
             "$ref": "#/components/schemas/SubjectEnum"
+          },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
           },
           "start_time": {
             "type": "string",
@@ -4478,6 +4869,8 @@
         "required": [
           "id",
           "subject",
+          "educational_system",
+          "grade",
           "start_time",
           "end_time",
           "status",
@@ -4501,6 +4894,15 @@
           },
           "subject": {
             "$ref": "#/components/schemas/SubjectEnum"
+          },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
           },
           "start_time": {
             "type": "string",
@@ -4584,6 +4986,8 @@
           "id",
           "teacher",
           "subject",
+          "educational_system",
+          "grade",
           "start_time",
           "end_time",
           "status",
@@ -4606,6 +5010,15 @@
           },
           "subject": {
             "$ref": "#/components/schemas/SubjectEnum"
+          },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
           },
           "lesson_index": {
             "type": "integer",
@@ -4652,6 +5065,8 @@
         "required": [
           "id",
           "subject",
+          "educational_system",
+          "grade",
           "lesson_index",
           "min_duration_minutes",
           "max_duration_minutes",
@@ -4670,6 +5085,15 @@
           },
           "subject": {
             "$ref": "#/components/schemas/SubjectEnum"
+          },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
           },
           "lesson_index": {
             "type": "integer",
@@ -4709,6 +5133,8 @@
         "required": [
           "id",
           "subject",
+          "educational_system",
+          "grade",
           "lesson_index",
           "min_duration_minutes",
           "max_duration_minutes",
@@ -4728,6 +5154,15 @@
           "subject": {
             "$ref": "#/components/schemas/SubjectEnum"
           },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
+          },
           "lesson_index": {
             "type": "integer",
             "title": "Lesson Index"
@@ -4762,6 +5197,8 @@
         "required": [
           "id",
           "subject",
+          "educational_system",
+          "grade",
           "lesson_index",
           "min_duration_minutes",
           "max_duration_minutes",
@@ -4780,6 +5217,15 @@
           "subject": {
             "$ref": "#/components/schemas/SubjectEnum"
           },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
+          },
           "lesson_index": {
             "type": "integer",
             "title": "Lesson Index"
@@ -4814,6 +5260,8 @@
         "required": [
           "id",
           "subject",
+          "educational_system",
+          "grade",
           "lesson_index",
           "min_duration_minutes",
           "max_duration_minutes",
@@ -4831,6 +5279,15 @@
           },
           "subject": {
             "$ref": "#/components/schemas/SubjectEnum"
+          },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
           },
           "lesson_index": {
             "type": "integer",
@@ -4866,6 +5323,8 @@
         "required": [
           "id",
           "subject",
+          "educational_system",
+          "grade",
           "lesson_index",
           "min_duration_minutes",
           "max_duration_minutes",
@@ -4883,6 +5342,15 @@
           },
           "subject": {
             "$ref": "#/components/schemas/SubjectEnum"
+          },
+          "educational_system": {
+            "$ref": "#/components/schemas/EducationalSystemEnum"
+          },
+          "grade": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Grade"
           },
           "lesson_index": {
             "type": "integer",
@@ -4918,6 +5386,8 @@
         "required": [
           "id",
           "subject",
+          "educational_system",
+          "grade",
           "lesson_index",
           "min_duration_minutes",
           "max_duration_minutes",

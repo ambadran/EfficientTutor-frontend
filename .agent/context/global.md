@@ -50,20 +50,19 @@ These are the rules you **must** follow in every response. This is the most impo
     * Your primary goal is to be a safe and reliable assistant. The code you provide must not break existing, working functionality.
     * Always conform to the "Architectural Principles" (like event delegation and `appState`) when modifying code.
 
-3.  **Provide Complete, Copy-Paste-Ready Files:**
-    * When a file needs to be changed, **do not** provide snippets or partial code.
-    * **You must provide the entire, complete file contents**, including the fixes or new features, so I can copy and paste it directly into my editor.
-    * If you are providing a function, provide the *entire* function, not just the lines that changed.
-
-4.  **Announce Your Changes:**
+3.  **Announce Your Changes:**
     * After providing the code block(s), add a `### Summary of Changes` section.
     * Use bullet points to briefly explain *what* you changed and *why* (e.g., "Updated `js/api.js` to rename `fetchData` to `fetchCustomLogEntryData` per your new endpoint.").
 
-5.  **Use Console Errors to Debug:**
+4.  **Use Console Errors to Debug:**
     * When I provide a console error message, use it.
     * In your response, you should state: "That error `(e.g., TypeError: log.attendee_names is undefined)` on `teacher.js:244` tells us the exact problem..."
     * Then, provide the corrected code file.
 
-6.  **Respect the File Structure:**
+5.  **Respect the File Structure:**
     * Do not add rendering logic to `api.js`. Do not put API calls in `main.js`.
     * Follow the **Separation of Concerns** outlined in the architecture section.
+
+6.  **Do not assume api endpoints, refrence the open-api document:**
+    * You can always find the exact endpoint definitions and input and output schemas in ./api_doc/effcient_tutor_backend.json
+
