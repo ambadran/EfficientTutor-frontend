@@ -9,7 +9,7 @@ import { confirmDeleteStudent } from './ui/templates.js';
 import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback, showModal, showConfirmDialog } from './ui/modals.js';
 import { renderTeacherTuitionLogsPage, handleVoidLog, showChargesDetail, showAddTuitionLogModal, renderTeacherPaymentLogsPage, showAddPaymentLogModal, handleVoidPaymentLog, showMeetingLinkModal, showMeetingLinkDetailsModal } from './ui/teacher.js';
 import { renderNotesList, showCreateNoteModal, showUpdateNoteModal } from './ui/notes.js';
-import { renderStudentProfile, handleSaveStudentProfile, showAddSubjectModal, handleRemoveSubject } from './ui/profile.js';
+import { renderStudentProfile, handleSaveStudentDetails, handleSaveStudentAvailability, handleCreateStudent, showAddSubjectModal, handleRemoveSubject, handleProfileTimetableAction, updateProfileTimetable } from './ui/profile.js';
 
 // --- STATE FOR WIZARD ---
 let pendingSpecialties = [];
@@ -580,9 +580,18 @@ document.body.addEventListener('click', (e) => {
         });
     }
 
-    if (closest('#save-student-btn')) {
-        const btn = closest('#save-student-btn');
-        handleSaveStudentProfile(btn.dataset.studentId, btn.dataset.mode);
+    if (closest('#save-student-details-btn')) {
+        const btn = closest('#save-student-details-btn');
+        handleSaveStudentDetails(btn.dataset.studentId);
+    }
+
+    if (closest('#save-student-availability-btn')) {
+        const btn = closest('#save-student-availability-btn');
+        handleSaveStudentAvailability(btn.dataset.studentId);
+    }
+
+    if (closest('#create-student-btn')) {
+        handleCreateStudent();
     }
 
     if (closest('#add-student-subject-btn')) {
@@ -598,6 +607,28 @@ document.body.addEventListener('click', (e) => {
         renderPage(); 
     }
 
+    // --- Profile Availability Management ---
+    if (closest('#profile-timetable-wrapper')) {
+        const grid = closest('#timetable-grid-main');
+        
+        // Add Event (Click on grid background)
+        if (grid && target === grid) {
+             handleProfileTimetableAction('add', grid.dataset.dayKey, e.offsetY);
+        }
+
+        // Edit Event
+        const bubble = closest('.event-bubble');
+        if (bubble && grid) { // Ensure we have the grid for dayKey
+             handleProfileTimetableAction('edit', grid.dataset.dayKey, bubble.dataset.start);
+        }
+        
+        // Set All Buttons
+        const setAllBtn = closest('.set-all-times-btn');
+        if (setAllBtn) {
+             handleProfileTimetableAction('setAll', setAllBtn.dataset.type);
+        }
+    }
+
     // Timetable Page Specific
     const mainTimetable = closest('#page-content .timetable-component');
     if (mainTimetable) {
@@ -605,7 +636,12 @@ document.body.addEventListener('click', (e) => {
         if (dayNavBtn) {
             const dir = parseInt(dayNavBtn.dataset.direction);
             appState.currentTimetableDay = (appState.currentTimetableDay + dir + 7) % 7;
-            renderPage();
+            
+            if (closest('#profile-timetable-wrapper')) {
+                updateProfileTimetable();
+            } else {
+                renderPage();
+            }
         }
     }
 });

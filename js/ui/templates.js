@@ -1,4 +1,4 @@
-import { appState } from '../config.js';
+import { appState, config } from '../config.js';
 import { fetchNotes, fetchFinancialSummary, fetchTuitionLogs, fetchTuitions, fetchTimetable } from '../api.js';
 import { showModal, closeModal , showLoadingOverlay, hideStatusOverlay} from './modals.js';
 import { renderPage } from './navigation.js';
@@ -285,7 +285,7 @@ export function renderSettingsPage() {
             </div>
             <div class="bg-gray-800 p-6 rounded-lg">
                 <h3 class="text-lg font-semibold mb-4">About</h3>
-                <p class="text-gray-400">EfficientTutor v1.0.0</p>
+                <p class="text-gray-400">EfficientTutor ${config.version}</p>
             </div>
         </div>`;
 }

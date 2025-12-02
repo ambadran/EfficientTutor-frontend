@@ -22,7 +22,7 @@ export const config = {
     daysOfWeek: ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
     timeSlotsStartHour: 5,
     pixelsPerMinute: 1,
-
+    version: 'v0.2', // Current application version
 };
 
 // --- GLOBAL STATE ---
