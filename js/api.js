@@ -1,5 +1,6 @@
 import { appState, config } from './config.js';
 import { handleLogout } from './auth.js';
+import { hideStatusOverlay } from './ui/modals.js';
 
 async function apiRequest(url, options = {}) {
     const token = localStorage.getItem('accessToken');
@@ -28,7 +29,8 @@ async function apiRequest(url, options = {}) {
 
         if (!response.ok) {
             // Check for the specific token validation error
-            if (response.status === 401 && data.detail === "Could not validate credentials") {
+            if (response.status === 401) {
+                hideStatusOverlay();
                 handleLogout();
                 return new Promise(() => {}); 
             }

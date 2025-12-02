@@ -55,7 +55,7 @@ function renderTuitionLogsTable(logs) {
                 <td class="p-3">${formatTime(log.end_time)}</td>
                 <td class="p-3 text-center">${log.duration}</td>
                 <td class="p-3">${log.subject}</td>
-                <td class="p-3">${(log.charges || []).map(c => c.student_name).join(', ')}</td>
+                <td class="p-3">${(log.charges || []).map(c => c.student_name).join('<br>')}</td>
                 <td class="p-3">
                     <div class="flex items-center justify-between">
                         <span>${log.total_cost} kwd</span>
