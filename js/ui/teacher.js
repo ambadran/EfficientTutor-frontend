@@ -81,20 +81,57 @@ export async function renderTeacherTuitionLogsPage() {
         const [summary, logs] = await Promise.all([fetchFinancialSummary(), fetchTuitionLogs()]);
         appState.teacherTuitionLogs = logs;
         const tableHTML = renderTuitionLogsTable(logs);
+
+        // Build the Parent Breakdown HTML
+        let breakdownHTML = '<p class="text-gray-400 text-sm">No parent data available.</p>';
+        if (summary.per_parent_breakdown && summary.per_parent_breakdown.length > 0) {
+            breakdownHTML = summary.per_parent_breakdown.map(p => {
+                const balance = parseFloat(p.balance);
+                const balanceColor = balance > 0 ? 'text-green-400' : (balance < 0 ? 'text-red-400' : 'text-gray-400');
+                const balanceText = balance > 0 ? `+${p.balance} (Credit)` : (balance < 0 ? `${p.balance} (Owed)` : '0.00');
+                
+                return `
+                    <div class="flex justify-between items-center p-2 border-b border-gray-700 last:border-0">
+                        <span class="text-gray-300 font-medium">${p.parent_name}</span>
+                        <div class="text-right">
+                            <span class="block ${balanceColor} font-bold">${balanceText}</span>
+                            <span class="text-xs text-gray-500">${p.unpaid_lessons_count} unpaid logs</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
         return `
             <div class="space-y-6">
                 <div class="flex justify-between items-center">
                     <h2 class="text-2xl font-bold">Tuition Logs</h2>
                     <button id="add-new-log-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition duration-300"><i class="fas fa-plus mr-2"></i> Add New Log</button>
                 </div>
+                
+                <!-- Summary Grid -->
                 <div>
                     <h3 class="text-xl font-semibold mb-4">Summary</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-blue-400">${summary.total_lessons_given_this_month}</p><p class="text-gray-400">Lessons This Month</p></div>
                         <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.total_credit_held} kwd</p><p class="text-gray-400">Total Credit Held</p></div>
                         <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_owed_to_teacher} kwd</p><p class="text-gray-400">Total Owed to You</p></div>
                     </div>
+
+                    <!-- Parent Breakdown -->
+                    <div class="bg-gray-800 p-4 rounded-lg">
+                        <div class="flex justify-between items-center">
+                            <h4 class="text-lg font-semibold text-indigo-300">Balances by Parent</h4>
+                            <button id="toggle-parent-breakdown-btn" class="text-gray-400 hover:text-white focus:outline-none">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        </div>
+                        <div id="parent-breakdown-content" class="hidden mt-3 max-h-60 overflow-y-auto pr-2 border-t border-gray-700 pt-2">
+                            ${breakdownHTML}
+                        </div>
+                    </div>
                 </div>
+
                 ${tableHTML}
             </div>`;
     } catch (error) {
@@ -127,7 +164,17 @@ export function showChargesDetail(logId) {
         showStatusMessage('error', 'Charge details not available.');
         return;
     }
-    const chargesHTML = log.charges.map(charge => `<li class="flex justify-between items-center p-2 bg-gray-700 rounded-md"><span>${charge.student_name}</span><span class="font-semibold">${charge.cost} kwd</span></li>`).join('');
+    const chargesHTML = log.charges.map(charge => {
+        const statusColor = charge.paid_status === 'Paid' ? 'text-green-400' : 'text-red-400';
+        return `
+        <li class="flex justify-between items-center p-2 bg-gray-700 rounded-md">
+            <span>${charge.student_name}</span>
+            <div class="text-right">
+                <span class="block font-semibold">${charge.cost} kwd</span>
+                <span class="text-xs ${statusColor}">${charge.paid_status}</span>
+            </div>
+        </li>`;
+    }).join('');
     const body = `<ul class="space-y-2">${chargesHTML}</ul>`;
     const footer = `<div class="flex justify-end"><button id="modal-close-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Close</button></div>`;
     showModal('Cost Breakdown', body, footer);

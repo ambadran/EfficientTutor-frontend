@@ -25,3 +25,4 @@ __pychache__
 tmp
 tmp*
 node_modules/
+.gemini/

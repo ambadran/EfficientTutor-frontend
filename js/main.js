@@ -452,6 +452,22 @@ document.body.addEventListener('click', (e) => {
     const chargesBtn = closest('.view-charges-btn');
     if (chargesBtn) { showChargesDetail(chargesBtn.dataset.logId); }
 
+    // Teacher - Toggle Parent Breakdown
+    if (closest('#toggle-parent-breakdown-btn')) {
+        const content = document.getElementById('parent-breakdown-content');
+        const icon = closest('#toggle-parent-breakdown-btn').querySelector('i');
+        if (content) {
+            content.classList.toggle('hidden');
+            if (content.classList.contains('hidden')) {
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+            } else {
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            }
+        }
+    }
+
     // Teacher - Payment Logs
     if (closest('#add-new-payment-log-btn')) { showAddPaymentLogModal(); }
     const voidPaymentBtn = closest('.void-payment-log-btn');
