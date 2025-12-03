@@ -10,6 +10,9 @@ import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, s
 import { renderTeacherTuitionLogsPage, handleVoidLog, showChargesDetail, showAddTuitionLogModal, renderTeacherPaymentLogsPage, showAddPaymentLogModal, handleVoidPaymentLog, showMeetingLinkModal, showMeetingLinkDetailsModal } from './ui/teacher.js';
 import { renderNotesList, showCreateNoteModal, showUpdateNoteModal } from './ui/notes.js';
 import { renderStudentProfile, handleSaveStudentDetails, handleSaveStudentAvailability, handleCreateStudent, showAddSubjectModal, handleRemoveSubject, handleProfileTimetableAction, updateProfileTimetable } from './ui/profile.js';
+import { App } from '@capacitor/app';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { Capacitor } from '@capacitor/core';
 
 // --- STATE FOR WIZARD ---
 let pendingSpecialties = [];
@@ -676,6 +679,17 @@ document.getElementById('page-content').addEventListener('change', (e) => {
     }
 });
 
+// --- MOBILE BACK BUTTON ---
+App.addListener('backButton', ({ canGoBack }) => {
+    if (document.getElementById('modal-backdrop')) {
+        closeModal();
+    } else if (appState.isSidebarOpen && window.innerWidth < 768) {
+        toggleSidebar();
+    } else {
+        App.exitApp();
+    }
+});
+
 // --- INITIALIZATION ---
 async function initialize() {
     navigateTo('login'); // Start at login page
@@ -686,6 +700,26 @@ async function initialize() {
         console.log("Backend connection successful.");
         hideStatusOverlay();
         await checkAuthState(); // Check if already logged in via token
+
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const result = await PushNotifications.requestPermissions();
+                if (result.receive === 'granted') {
+                    await PushNotifications.register();
+                }
+                
+                PushNotifications.addListener('registration', (token) => {
+                    console.log('Push Registration Token:', token.value);
+                    // TODO: Send token to backend
+                });
+
+                PushNotifications.addListener('pushNotificationReceived', (notification) => {
+                     showStatusMessage('info', notification.title || 'New Notification');
+                });
+            } catch (e) {
+                console.warn('Push notification setup failed:', e);
+            }
+        }
     } catch (error) {
         console.error("Initialization Error:", error);
         hideStatusOverlay();

@@ -14,7 +14,29 @@
     --others-color: #4ade80; /* green-400 */
     --tuition-color: #60a5fa; /* blue-400 */
     --sleep-color: #9333ea;  /* purple-600 */
+
+    /* Native Feel Overrides */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
 }
+
+/* Safe Area Utilities */
+.pt-safe { padding-top: max(env(safe-area-inset-top), 1rem); }
+.pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 1rem); }
+.pl-safe { padding-left: env(safe-area-inset-left); }
+.pr-safe { padding-right: env(safe-area-inset-right); }
+
+input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+button, a {
+    touch-action: manipulation;
+}
+
 html.light {
     --bg-color: #f3f4f6;
     --surface-color: #ffffff;
