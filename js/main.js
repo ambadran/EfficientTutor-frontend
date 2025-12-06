@@ -2,12 +2,12 @@
 import { appState, config } from './config.js';
 import { checkBackendStatus, postStudent, deleteStudentRequest, fetchStudent, deleteNote, deleteMeetingLink, updateTeacher, updateParent, addTeacherSpecialty, deleteTeacherSpecialty } from './api.js';
 import { checkAuthState, handleLogin, handleSignup, handleLogout } from './auth.js';
-import { navigateTo, renderPage } from './ui/navigation.js';
+import { navigateTo, renderPage, handleParentLogFilterTypeChange, handleParentLogFilterEntityChange } from './ui/navigation.js';
 import { toggleSidebar, displayGlobalError, initializeLayout } from './ui/layout.js';
 import { showStudentRegistrationWizard } from './ui/studentWizard.js';
 import { confirmDeleteStudent } from './ui/templates.js';
 import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback, showModal, showConfirmDialog } from './ui/modals.js';
-import { renderTeacherTuitionLogsPage, handleVoidLog, showChargesDetail, showAddTuitionLogModal, renderTeacherPaymentLogsPage, showAddPaymentLogModal, handleVoidPaymentLog, showMeetingLinkModal, showMeetingLinkDetailsModal } from './ui/teacher.js';
+import { renderTeacherTuitionLogsPage, handleVoidLog, showChargesDetail, showAddTuitionLogModal, renderTeacherPaymentLogsPage, showAddPaymentLogModal, handleVoidPaymentLog, showMeetingLinkModal, showMeetingLinkDetailsModal, handleTuitionFilterTypeChange, handleTuitionFilterEntityChange, handlePaymentFilterTypeChange, handlePaymentFilterEntityChange } from './ui/teacher.js';
 import { renderNotesList, showCreateNoteModal, showUpdateNoteModal } from './ui/notes.js';
 import { renderStudentProfile, handleSaveStudentDetails, handleSaveStudentAvailability, handleCreateStudent, showAddSubjectModal, handleRemoveSubject, handleProfileTimetableAction, updateProfileTimetable } from './ui/profile.js';
 
@@ -690,6 +690,16 @@ document.getElementById('page-content').addEventListener('change', (e) => {
             container.innerHTML = '<div class="text-center text-gray-500 py-8">Select a student above to view and edit their details.</div>';
         }
     }
+
+    // Teacher Filters
+    if (e.target.id === 'tuition-filter-type') handleTuitionFilterTypeChange(e.target.value);
+    if (e.target.id === 'tuition-filter-entity') handleTuitionFilterEntityChange(e.target.value);
+    if (e.target.id === 'payment-filter-type') handlePaymentFilterTypeChange(e.target.value);
+    if (e.target.id === 'payment-filter-entity') handlePaymentFilterEntityChange(e.target.value);
+
+    // Parent Logs Filters
+    if (e.target.id === 'parent-logs-filter-type') handleParentLogFilterTypeChange(e.target.value);
+    if (e.target.id === 'parent-logs-filter-entity') handleParentLogFilterEntityChange(e.target.value);
 });
 
 // --- INITIALIZATION ---

@@ -1,5 +1,5 @@
 import { appState, config } from '../config.js';
-import { fetchNotes, fetchFinancialSummary, fetchTuitionLogs, fetchTuitions, fetchTimetable } from '../api.js';
+import { fetchNotes, fetchFinancialSummary, fetchTuitionLogs, fetchTuitions, fetchTimetable, fetchTeacher } from '../api.js';
 import { showModal, closeModal , showLoadingOverlay, hideStatusOverlay} from './modals.js';
 import { renderPage } from './navigation.js';
 
@@ -206,18 +206,56 @@ export function renderStudentInfoPage() {
 }
 
 
+// --- Parent Logs Filtering State ---
+let currentParentLogFilter = { type: 'all', entityId: null };
+let cachedParentTeachers = [];
+let cachedParentStudents = [];
+
+// Helper to extract unique teachers from the parent's students
+async function fetchParentTeachers() {
+    const teacherIds = new Set();
+    (appState.students || []).forEach(s => {
+        (s.student_subjects || []).forEach(sub => {
+            if(sub.teacher_id) teacherIds.add(sub.teacher_id);
+        });
+    });
+    
+    if (teacherIds.size === 0) return [];
+
+    // Fetch details for each unique teacher
+    // Optimization: We could cache this or assume names are available elsewhere, 
+    // but for now we fetch to ensure we have names.
+    const promises = Array.from(teacherIds).map(id => fetchTeacher(id).catch(() => null));
+    const teachers = await Promise.all(promises);
+    return teachers.filter(t => t !== null);
+}
+
 export async function renderLogsPage() {
     if (!appState.currentUser) {
         return `<div class="text-center p-8 text-gray-400">You must be logged in to view logs.</div>`;
     }
     
     try {
-        const [summary, detailed_logs] = await Promise.all([
-            fetchFinancialSummary(),
-            fetchTuitionLogs()
+        // Prepare filters based on state
+        const filters = {};
+        if (currentParentLogFilter.type === 'student' && currentParentLogFilter.entityId) {
+            filters.student_id = currentParentLogFilter.entityId;
+        } else if (currentParentLogFilter.type === 'teacher' && currentParentLogFilter.entityId) {
+            filters.teacher_id = currentParentLogFilter.entityId;
+        }
+
+        // Fetch data with filters
+        // Also fetch filter options if not already cached (or refresh them)
+        const [summary, detailed_logs, teachers] = await Promise.all([
+            fetchFinancialSummary(filters),
+            fetchTuitionLogs(filters),
+            fetchParentTeachers()
         ]);
 
-        // Helper function to format just the time part, moved outside the loop for efficiency
+        cachedParentTeachers = teachers;
+        cachedParentStudents = appState.students || []; // Already loaded on login
+
+        // --- Helper Formatter ---
         const formatTime = (timeStr) => {
             if (!timeStr) return '';
             return new Date(timeStr).toLocaleTimeString('en-US', {
@@ -225,6 +263,144 @@ export async function renderLogsPage() {
                 minute: '2-digit',
                 hour12: true
             });
+        };
+
+        // --- Render Logs Table ---
+        const logsHTML = detailed_logs.map(log => {
+            const attendees = log.attendee_names || [];
+            return `
+                <div class="bg-gray-800 p-4 rounded-lg grid grid-cols-2 md:grid-cols-5 gap-4 items-center">
+                    <div>
+                        <p class="font-semibold">${log.subject}</p>
+                        <p class="text-sm text-indigo-300">${attendees.join(', ')}</p>
+                    </div>
+                    <div class="text-sm text-gray-400 text-center">
+                        <p>${new Date(log.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                        <p class="text-xs">${formatTime(log.start_time)} - ${formatTime(log.end_time)}</p>
+                    </div>
+                    <div class="text-center">${log.duration}</div>
+                    <div class="text-center font-semibold">${log.cost} kwd</div>
+                    <div class="text-center">
+                        <span class="px-3 py-1 rounded-full text-sm font-semibold ${log.paid_status === 'Paid' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">
+                            ${log.paid_status}
+                        </span>
+                    </div>
+                </div>`;
+        }).join('');
+
+        // --- Render Filter Dropdowns ---
+        const studentOptions = cachedParentStudents.map(s => `<option value="${s.id}" ${currentParentLogFilter.type === 'student' && currentParentLogFilter.entityId === s.id ? 'selected' : ''}>${s.first_name} ${s.last_name}</option>`).join('');
+        const teacherOptions = cachedParentTeachers.map(t => `<option value="${t.id}" ${currentParentLogFilter.type === 'teacher' && currentParentLogFilter.entityId === t.id ? 'selected' : ''}>${t.first_name} ${t.last_name}</option>`).join('');
+
+        let entityOptionsHTML = '<option value="">-- Select --</option>';
+        if (currentParentLogFilter.type === 'student') entityOptionsHTML += studentOptions;
+        else if (currentParentLogFilter.type === 'teacher') entityOptionsHTML += teacherOptions;
+
+        const filterBarHTML = `
+            <div class="bg-gray-800 p-4 rounded-lg flex flex-col md:flex-row gap-4 items-end md:items-center border border-gray-700 mb-6">
+                <div class="w-full md:w-auto">
+                    <label class="text-xs text-gray-400 block mb-1 uppercase font-semibold">Filter By</label>
+                    <select id="parent-logs-filter-type" class="p-2 bg-gray-700 rounded border border-gray-600 w-full md:w-40 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="all" ${currentParentLogFilter.type === 'all' ? 'selected' : ''}>View All</option>
+                        <option value="student" ${currentParentLogFilter.type === 'student' ? 'selected' : ''}>Student</option>
+                        <option value="teacher" ${currentParentLogFilter.type === 'teacher' ? 'selected' : ''}>Teacher</option>
+                    </select>
+                </div>
+                
+                <div id="parent-logs-filter-entity-container" class="w-full md:w-auto flex-grow ${currentParentLogFilter.type === 'all' ? 'hidden' : ''}">
+                    <label class="text-xs text-gray-400 block mb-1 uppercase font-semibold">Select Entity</label>
+                    <select id="parent-logs-filter-entity" class="p-2 bg-gray-700 rounded border border-gray-600 w-full text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        ${entityOptionsHTML}
+                    </select>
+                </div>
+            </div>
+        `;
+
+        return `
+            <div class="space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold">Logs</h2>
+                </div>
+
+                ${filterBarHTML}
+
+                <div id="parent-logs-content">
+                    <h3 class="text-xl font-semibold mb-4">Summary</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-red-500">${summary.unpaid_count}</p><p class="text-gray-400">Lessons Unpaid</p></div>
+                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.credit_balance} kwd</p><p class="text-gray-400">Credit Balance</p></div>
+                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_due} kwd</p><p class="text-gray-400">Total Amount Due</p></div>
+                    </div>
+
+                    <h3 class="text-xl font-semibold mb-4">Detailed Logs</h3>
+                    <div class="space-y-2">${logsHTML}</div>
+                </div>
+            </div>`;
+    } catch (error) {
+        console.error("Error fetching logs:", error);
+        return `<div class="text-center text-red-400 p-8">Error loading logs: ${error.message}</div>`;
+    }
+}
+
+// --- Parent Filter Handlers ---
+export function handleParentLogFilterTypeChange(type) {
+    const entityContainer = document.getElementById('parent-logs-filter-entity-container');
+    const entitySelect = document.getElementById('parent-logs-filter-entity');
+    
+    currentParentLogFilter.type = type;
+    currentParentLogFilter.entityId = null;
+
+    if (type === 'all') {
+        entityContainer.classList.add('hidden');
+        updateParentLogsContent({});
+    } else {
+        entityContainer.classList.remove('hidden');
+        entitySelect.innerHTML = '<option value="">-- Select --</option>';
+        
+        if (type === 'student') {
+            cachedParentStudents.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = `${s.first_name} ${s.last_name}`;
+                entitySelect.appendChild(opt);
+            });
+        } else if (type === 'teacher') {
+            cachedParentTeachers.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = `${t.first_name} ${t.last_name}`;
+                entitySelect.appendChild(opt);
+            });
+        }
+    }
+}
+
+export function handleParentLogFilterEntityChange(entityId) {
+    if (!entityId) return;
+    
+    currentParentLogFilter.entityId = entityId;
+    const filters = {};
+    if (currentParentLogFilter.type === 'student') filters.student_id = entityId;
+    else if (currentParentLogFilter.type === 'teacher') filters.teacher_id = entityId;
+    
+    updateParentLogsContent(filters);
+}
+
+async function updateParentLogsContent(filters) {
+    const container = document.getElementById('parent-logs-content');
+    if(!container) return;
+    
+    container.innerHTML = '<div class="flex justify-center p-8"><div class="loader"></div></div>';
+
+    try {
+        const [summary, detailed_logs] = await Promise.all([
+            fetchFinancialSummary(filters),
+            fetchTuitionLogs(filters)
+        ]);
+
+        const formatTime = (timeStr) => {
+            if (!timeStr) return '';
+            return new Date(timeStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
         };
 
         const logsHTML = detailed_logs.map(log => {
@@ -249,24 +425,21 @@ export async function renderLogsPage() {
                 </div>`;
         }).join('');
 
-        return `
-            <div class="space-y-6">
-                <div>
-                    <h3 class="text-xl font-semibold mb-4">Summary</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-red-500">${summary.unpaid_count}</p><p class="text-gray-400">Lessons Unpaid</p></div>
-                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.credit_balance} kwd</p><p class="text-gray-400">Credit Balance</p></div>
-                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_due} kwd</p><p class="text-gray-400">Total Amount Due</p></div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-xl font-semibold mb-4">Detailed Logs</h3>
-                    <div class="space-y-2">${logsHTML}</div>
-                </div>
-            </div>`;
+        container.innerHTML = `
+            <h3 class="text-xl font-semibold mb-4">Summary</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-red-500">${summary.unpaid_count}</p><p class="text-gray-400">Lessons Unpaid</p></div>
+                <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.credit_balance} kwd</p><p class="text-gray-400">Credit Balance</p></div>
+                <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_due} kwd</p><p class="text-gray-400">Total Amount Due</p></div>
+            </div>
+
+            <h3 class="text-xl font-semibold mb-4">Detailed Logs</h3>
+            <div class="space-y-2">${logsHTML}</div>
+        `;
+
     } catch (error) {
-        console.error("Error fetching logs:", error);
-        return `<div class="text-center text-red-400 p-8">Error loading logs: ${error.message}</div>`;
+        console.error("Error updating parent logs:", error);
+        container.innerHTML = `<div class="text-center text-red-400 p-8">Error loading data: ${error.message}</div>`;
     }
 }
 

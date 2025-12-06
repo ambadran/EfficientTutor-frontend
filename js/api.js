@@ -137,9 +137,19 @@ export const fetchTimetable = () => apiRequest(`/timetable/`);
 export const fetchMeetingLinks = () => apiRequest(`/timetable/`); // Meeting links are now part of the timetable
 
 // --- Unified Financial Logs & Summary (Auth Needed) ---
-export const fetchTuitionLogs = () => apiRequest(`/tuition-logs/`);
-export const fetchPaymentLogs = () => apiRequest(`/payment-logs/`);
-export const fetchFinancialSummary = () => apiRequest(`/financial-summary/`);
+const buildQuery = (filters) => {
+    if (!filters) return '';
+    const params = new URLSearchParams();
+    for (const key in filters) {
+        if (filters[key]) params.append(key, filters[key]);
+    }
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
+};
+
+export const fetchTuitionLogs = (filters) => apiRequest(`/tuition-logs/${buildQuery(filters)}`);
+export const fetchPaymentLogs = (filters) => apiRequest(`/payment-logs/${buildQuery(filters)}`);
+export const fetchFinancialSummary = (filters) => apiRequest(`/financial-summary/${buildQuery(filters)}`);
 export const fetchTuitions = () => apiRequest(`/tuitions/`);
 
 // --- Teacher Financial Actions (Auth Needed) ---

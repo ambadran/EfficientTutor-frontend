@@ -1511,12 +1511,77 @@
         "summary": "List Tuition Logs",
         "description": "Retrieves a list of all tuition logs relevant to the current user.\nThe response model varies based on the user's role.",
         "operationId": "list_tuition_logs_tuition_logs__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "student_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional filter for Student ID",
+              "title": "Student Id"
+            },
+            "description": "Optional filter for Student ID"
+          },
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional filter for Parent ID",
+              "title": "Parent Id"
+            },
+            "description": "Optional filter for Parent ID"
+          },
+          {
+            "name": "teacher_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional filter for Teacher ID",
+              "title": "Teacher Id"
+            },
+            "description": "Optional filter for Teacher ID"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "anyOf": [
                       {
@@ -1530,18 +1595,22 @@
                       }
                     ]
                   },
-                  "type": "array",
                   "title": "Response List Tuition Logs Tuition Logs  Get"
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        }
       },
       "post": {
         "tags": [
@@ -1550,7 +1619,13 @@
         "summary": "Create Tuition Log",
         "description": "Creates a new tuition log. Restricted to Teachers only.",
         "operationId": "create_tuition_log_tuition_logs__post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -1562,18 +1637,17 @@
                     "$ref": "#/components/schemas/CustomLogInput"
                   }
                 ],
-                "title": "Log Data",
                 "discriminator": {
                   "propertyName": "log_type",
                   "mapping": {
                     "SCHEDULED": "#/components/schemas/ScheduledLogInput",
                     "CUSTOM": "#/components/schemas/CustomLogInput"
                   }
-                }
+                },
+                "title": "Log Data"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -1596,12 +1670,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        }
       }
     },
     "/tuition-logs/{log_id}": {
@@ -1793,27 +1862,77 @@
         "summary": "List Payment Logs",
         "description": "Retrieves a list of all payment logs relevant to the current user.",
         "operationId": "list_payment_logs_payment_logs__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional filter for Parent ID",
+              "title": "Parent Id"
+            },
+            "description": "Optional filter for Parent ID"
+          },
+          {
+            "name": "teacher_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional filter for Teacher ID",
+              "title": "Teacher Id"
+            },
+            "description": "Optional filter for Teacher ID"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/PaymentLogRead"
                   },
-                  "type": "array",
                   "title": "Response List Payment Logs Payment Logs  Get"
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        }
       },
       "post": {
         "tags": [
@@ -1822,15 +1941,20 @@
         "summary": "Create Payment Log",
         "description": "Creates a new payment log. Restricted to Teachers only.",
         "operationId": "create_payment_log_payment_logs__post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PaymentLogCreate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -1853,12 +1977,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        }
       }
     },
     "/payment-logs/{log_id}": {
@@ -2024,6 +2143,70 @@
         "summary": "Get Financial Summary",
         "description": "Retrieves a financial summary for the current user.\n- For a Teacher, shows total owed, credit held, and lessons given.\n- For a Parent, shows total due, credit balance, and unpaid lesson count.",
         "operationId": "get_financial_summary_financial_summary__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional filter for Parent ID",
+              "title": "Parent Id"
+            },
+            "description": "Optional filter for Parent ID"
+          },
+          {
+            "name": "student_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional filter for Student ID",
+              "title": "Student Id"
+            },
+            "description": "Optional filter for Student ID"
+          },
+          {
+            "name": "teacher_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional filter for Teacher ID",
+              "title": "Teacher Id"
+            },
+            "description": "Optional filter for Teacher ID"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2042,13 +2225,18 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        }
       }
     },
     "/notes/": {
@@ -2722,6 +2910,10 @@
               }
             ],
             "title": "Cost"
+          },
+          "paid_status": {
+            "$ref": "#/components/schemas/PaidStatus",
+            "default": "Unpaid"
           }
         },
         "type": "object",
@@ -2747,6 +2939,10 @@
           "cost": {
             "type": "string",
             "title": "Cost"
+          },
+          "paid_status": {
+            "$ref": "#/components/schemas/PaidStatus",
+            "default": "Unpaid"
           }
         },
         "type": "object",

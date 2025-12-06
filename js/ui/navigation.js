@@ -6,8 +6,12 @@ import {
     renderLogsPage, 
     renderSettingsPage,
     renderTuitionsPage,
-    renderTeacherTimetablesPage
+    renderTeacherTimetablesPage,
+    handleParentLogFilterTypeChange,   // Re-export
+    handleParentLogFilterEntityChange  // Re-export
 } from './templates.js';
+
+export { handleParentLogFilterTypeChange, handleParentLogFilterEntityChange }; // Explicitly export them
 import { renderTimetablePage } from './timetable.js';
 import { displayGlobalError } from './layout.js';
 import { renderTeacherTuitionLogsPage, renderTeacherPaymentLogsPage, renderTeacherStudentInfoPage } from './teacher.js';
