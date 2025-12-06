@@ -12,35 +12,50 @@ This is a Tuition Management application. It's main purpose is to:
 
 ## Development & Deployment
 
-This project uses **Vanilla JavaScript** for logic and **Tailwind CSS** for styling. 
+This project uses **Vanilla JavaScript** for logic and **Tailwind CSS** for styling, bundled by **Vite**. It supports deployment as a Web App (PWA) and a Native Mobile App (iOS/Android via Capacitor).
 
 ### Prerequisites
-*   **Node.js** & **npm** (Required for building the CSS)
+*   **Node.js** & **npm** (Required)
+*   **Android Studio** (For Android development)
+*   **Xcode** (For iOS development - Mac only)
 
-### Local Development Setup
+### Local Development (Web)
 1.  **Install Dependencies:**
     ```bash
     npm install
     ```
-2.  **Run CSS Watcher:**
-    In a separate terminal, run this command to automatically rebuild CSS when you change files:
+2.  **Start Dev Server:**
+    This command starts a local server with Hot Module Replacement (HMR). It automatically compiles Tailwind CSS and JavaScript.
     ```bash
-    npm run watch:css
+    npm run dev
     ```
-3.  **Serve the App:**
-    Open `index.html` in your browser or use a simple server like Live Server.
+3.  **Open App:**
+    The terminal will show the local URL (usually `http://localhost:3000`).
 
-### Building for Production
-To generate the final minified CSS file manually:
+### Building for Production (Web)
+To generate the final optimized files for deployment:
 ```bash
-npm run build:css
+npm run build
 ```
+This creates a `dist/` folder containing the minified HTML, CSS, and JS.
+
+### Mobile Development (iOS & Android)
+The mobile apps run the code generated in the `dist/` folder inside a native container.
+
+1.  **Build & Sync:**
+    Whenever you make changes to the web code, run this to build the web assets and update the native projects:
+    ```bash
+    npm run build:mobile
+    ```
+2.  **Run on Device/Emulator:**
+    *   **Android:** `npm run open:android` (Opens Android Studio)
+    *   **iOS:** `npm run open:ios` (Opens Xcode)
 
 ### Deployment (Render.com)
-When deploying this as a **Static Site** on Render, use the following settings to ensure Tailwind is built correctly:
+When deploying this as a **Static Site** on Render:
 
-*   **Build Command:** `npm install && npm run build:css`
-*   **Publish Directory:** `.` (Keep default/root)
+*   **Build Command:** `npm install && npm run build`
+*   **Publish Directory:** `dist`
 
-This ensures Render installs Tailwind and compiles your `css/input.css` into the `css/style.css` required by the application.
+This ensures Render uses Vite to bundle the application correctly.
 

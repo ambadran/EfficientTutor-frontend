@@ -1,5 +1,8 @@
 # Mobile Application Migration Plan (EfficientTutor)
 
+**Current Status:** ✅ Phase 1 & 2 Complete (Vite & Capacitor Integrated).
+**Active Workflow:** Use `npm run dev` for web, `npm run build:mobile` for app updates.
+
 This document outlines the step-by-step strategy to transform the EfficientTutor web application into a native mobile application for iOS and Android using **Capacitor**.
 
 ## Core Strategy
@@ -22,8 +25,14 @@ Create this file in the root directory to tell Vite how to handle our Vanilla JS
 ```javascript
 // vite.config.js
 import { defineConfig } from 'vite';
+import legacy from '@vitejs/plugin-legacy';
 
 export default defineConfig({
+  plugins: [
+    legacy({
+      targets: ['defaults', 'not IE 11'],
+    }),
+  ],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -37,12 +46,15 @@ export default defineConfig({
 ```
 
 ### 1.3 Update `package.json` Scripts
-We will replace the manual Tailwind watch command with a unified dev command.
+We replace the old manual build scripts with unified Vite and Capacitor commands. This is the **final configuration**:
 ```json
 "scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "preview": "vite preview"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:mobile": "vite build && npx cap sync",
+    "open:android": "npx cap open android",
+    "open:ios": "npx cap open ios"
 }
 ```
 *Note: Vite handles CSS imports automatically, so we might adjust how Tailwind is included (importing CSS in JS instead of a separate process).*
