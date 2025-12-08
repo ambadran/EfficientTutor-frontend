@@ -723,6 +723,181 @@
         }
       }
     },
+    "/students/{student_id}/availability": {
+      "post": {
+        "tags": [
+          "Students"
+        ],
+        "summary": "Add Availability Interval",
+        "operationId": "add_availability_interval_students__student_id__availability_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Student Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvailabilityIntervalCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailabilityIntervalRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/students/{student_id}/availability/{interval_id}": {
+      "patch": {
+        "tags": [
+          "Students"
+        ],
+        "summary": "Update Availability Interval",
+        "operationId": "update_availability_interval_students__student_id__availability__interval_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Student Id"
+            }
+          },
+          {
+            "name": "interval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Interval Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvailabilityIntervalUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailabilityIntervalRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Students"
+        ],
+        "summary": "Delete Availability Interval",
+        "operationId": "delete_availability_interval_students__student_id__availability__interval_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Student Id"
+            }
+          },
+          {
+            "name": "interval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Interval Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/teachers/": {
       "get": {
         "tags": [
@@ -1103,6 +1278,181 @@
               "type": "string",
               "format": "uuid",
               "title": "Specialty Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/teachers/{teacher_id}/availability": {
+      "post": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Add Availability Interval",
+        "operationId": "add_availability_interval_teachers__teacher_id__availability_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "teacher_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Teacher Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvailabilityIntervalCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailabilityIntervalRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/teachers/{teacher_id}/availability/{interval_id}": {
+      "patch": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Update Availability Interval",
+        "operationId": "update_availability_interval_teachers__teacher_id__availability__interval_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "teacher_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Teacher Id"
+            }
+          },
+          {
+            "name": "interval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Interval Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvailabilityIntervalUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailabilityIntervalRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Delete Availability Interval",
+        "operationId": "delete_availability_interval_teachers__teacher_id__availability__interval_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "teacher_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Teacher Id"
+            }
+          },
+          {
+            "name": "interval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Interval Id"
             }
           }
         ],
@@ -2605,6 +2955,131 @@
         "title": "AdminUpdate",
         "description": "Pydantic model for validating the JSON payload when UPDATING an admin.\nAll fields are optional to allow for partial updates."
       },
+      "AvailabilityIntervalCreate": {
+        "properties": {
+          "day_of_week": {
+            "type": "integer",
+            "maximum": 7,
+            "minimum": 1,
+            "title": "Day Of Week"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "time",
+            "title": "End Time"
+          },
+          "availability_type": {
+            "type": "string",
+            "title": "Availability Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day_of_week",
+          "start_time",
+          "end_time",
+          "availability_type"
+        ],
+        "title": "AvailabilityIntervalCreate",
+        "description": "Pydantic model for creating an availability interval.\nCorresponds to db_models.AvailabilityIntervals."
+      },
+      "AvailabilityIntervalRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "day_of_week": {
+            "type": "integer",
+            "title": "Day Of Week"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "time",
+            "title": "End Time"
+          },
+          "availability_type": {
+            "type": "string",
+            "title": "Availability Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "day_of_week",
+          "start_time",
+          "end_time",
+          "availability_type"
+        ],
+        "title": "AvailabilityIntervalRead",
+        "description": "Pydantic model for reading an availability interval (Student or Teacher).\nCorresponds to db_models.AvailabilityIntervals."
+      },
+      "AvailabilityIntervalUpdate": {
+        "properties": {
+          "day_of_week": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 7,
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Of Week"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
+          "availability_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Availability Type"
+          }
+        },
+        "type": "object",
+        "title": "AvailabilityIntervalUpdate",
+        "description": "Pydantic model for updating an availability interval.\nAll fields are optional."
+      },
       "Body_login_for_access_token_auth_login_post": {
         "properties": {
           "grant_type": {
@@ -3776,76 +4251,6 @@
         "title": "ScheduledTuitionReadForTeacher",
         "description": "API model for a scheduled tuition (Teacher view)."
       },
-      "StudentAvailabilityIntervalRead": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "day_of_week": {
-            "type": "integer",
-            "title": "Day Of Week"
-          },
-          "start_time": {
-            "type": "string",
-            "format": "time",
-            "title": "Start Time"
-          },
-          "end_time": {
-            "type": "string",
-            "format": "time",
-            "title": "End Time"
-          },
-          "availability_type": {
-            "type": "string",
-            "title": "Availability Type"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "day_of_week",
-          "start_time",
-          "end_time",
-          "availability_type"
-        ],
-        "title": "StudentAvailabilityIntervalRead",
-        "description": "Pydantic model for reading a student's availability interval.\nCorresponds to db_models.StudentAvailabilityIntervals."
-      },
-      "StudentAvailabilityIntervalWrite": {
-        "properties": {
-          "day_of_week": {
-            "type": "integer",
-            "maximum": 7,
-            "minimum": 1,
-            "title": "Day Of Week"
-          },
-          "start_time": {
-            "type": "string",
-            "format": "time",
-            "title": "Start Time"
-          },
-          "end_time": {
-            "type": "string",
-            "format": "time",
-            "title": "End Time"
-          },
-          "availability_type": {
-            "type": "string",
-            "title": "Availability Type"
-          }
-        },
-        "type": "object",
-        "required": [
-          "day_of_week",
-          "start_time",
-          "end_time",
-          "availability_type"
-        ],
-        "title": "StudentAvailabilityIntervalWrite",
-        "description": "Pydantic model for creating/updating a student's availability interval.\nCorresponds to db_models.StudentAvailabilityIntervals."
-      },
       "StudentCreate": {
         "properties": {
           "first_name": {
@@ -3907,12 +4312,12 @@
             "type": "array",
             "title": "Student Subjects"
           },
-          "student_availability_intervals": {
+          "availability_intervals": {
             "items": {
-              "$ref": "#/components/schemas/StudentAvailabilityIntervalWrite"
+              "$ref": "#/components/schemas/AvailabilityIntervalCreate"
             },
             "type": "array",
-            "title": "Student Availability Intervals"
+            "title": "Availability Intervals"
           }
         },
         "type": "object",
@@ -4019,12 +4424,12 @@
             "type": "array",
             "title": "Student Subjects"
           },
-          "student_availability_intervals": {
+          "availability_intervals": {
             "items": {
-              "$ref": "#/components/schemas/StudentAvailabilityIntervalRead"
+              "$ref": "#/components/schemas/AvailabilityIntervalRead"
             },
             "type": "array",
-            "title": "Student Availability Intervals"
+            "title": "Availability Intervals"
           }
         },
         "type": "object",
@@ -4277,11 +4682,11 @@
             ],
             "title": "Student Subjects"
           },
-          "student_availability_intervals": {
+          "availability_intervals": {
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/StudentAvailabilityIntervalWrite"
+                  "$ref": "#/components/schemas/AvailabilityIntervalCreate"
                 },
                 "type": "array"
               },
@@ -4289,7 +4694,7 @@
                 "type": "null"
               }
             ],
-            "title": "Student Availability Intervals"
+            "title": "Availability Intervals"
           }
         },
         "type": "object",
@@ -4332,6 +4737,13 @@
             },
             "type": "array",
             "title": "Teacher Specialties"
+          },
+          "availability_intervals": {
+            "items": {
+              "$ref": "#/components/schemas/AvailabilityIntervalCreate"
+            },
+            "type": "array",
+            "title": "Availability Intervals"
           }
         },
         "type": "object",
@@ -4398,6 +4810,13 @@
             },
             "type": "array",
             "title": "Teacher Specialties"
+          },
+          "availability_intervals": {
+            "items": {
+              "$ref": "#/components/schemas/AvailabilityIntervalRead"
+            },
+            "type": "array",
+            "title": "Availability Intervals"
           }
         },
         "type": "object",
@@ -4533,6 +4952,20 @@
               }
             ],
             "title": "Currency"
+          },
+          "availability_intervals": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AvailabilityIntervalCreate"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Availability Intervals"
           }
         },
         "type": "object",
