@@ -26,3 +26,5 @@ tmp
 tmp*
 node_modules/
 .gemini/
+android/
+ios/

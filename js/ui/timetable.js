@@ -10,7 +10,7 @@ function renderStudentSelector() {
     return `<div class="mb-4"><label for="student-selector" class="text-sm text-gray-400">Viewing Timetable for:</label><select id="student-selector" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600">${options}</select></div>`;
 }
 
-function showAddEventModal(dataSource, dayKey, pixelY, onUpdate) {
+function showAddEventModal(dataSource, dayKey, pixelY, onUpdate, onSave) {
     const totalMinutes = (pixelY / config.pixelsPerMinute) + (config.timeSlotsStartHour * 60);
     const hour = Math.floor(totalMinutes / 60) % 24;
     const minute = Math.floor((totalMinutes % 60) / 15) * 15;
@@ -20,16 +20,33 @@ function showAddEventModal(dataSource, dayKey, pixelY, onUpdate) {
     const footer = `<div class="flex justify-end space-x-4"><button id="modal-cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">Cancel</button><button id="modal-confirm-add-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Add</button></div>`;
 
     showDialog('Add Activity', body, footer, (dialog) => {
-        dialog.addEventListener('click', e => {
+        dialog.addEventListener('click', async e => {
             if (e.target.closest('#modal-cancel-btn')) closeDialog(dialog);
             if (e.target.closest('#modal-confirm-add-btn')) {
                 const type = dialog.querySelector('#add-event-type').value;
                 const start = dialog.querySelector('#add-event-start').value;
                 const end = dialog.querySelector('#add-event-end').value;
                 if (start && end) {
-                    dataSource.availability[dayKey].push({ type, start, end });
-                    onUpdate();
-                    closeDialog(dialog);
+                    const btn = e.target.closest('#modal-confirm-add-btn');
+                    const originalText = btn.textContent;
+                    btn.disabled = true;
+                    btn.textContent = 'Saving...';
+
+                    try {
+                        if (onSave) {
+                            await onSave({ type, start, end });
+                        } else {
+                            dataSource.availability[dayKey].push({ type, start, end });
+                        }
+                        onUpdate();
+                        closeDialog(dialog);
+                    } catch (error) {
+                        console.error(error);
+                        alert('Failed to add event: ' + error.message);
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = originalText;
+                    }
                 } else {
                     alert('Please set start and end times.');
                 }
@@ -38,7 +55,7 @@ function showAddEventModal(dataSource, dayKey, pixelY, onUpdate) {
     });
 }
 
-function showEditEventModal(dataSource, dayKey, startTime, onUpdate) {
+function showEditEventModal(dataSource, dayKey, startTime, onUpdate, onSave, onDelete) {
     const eventList = dataSource.availability[dayKey];
     const eventIndex = eventList.findIndex(e => e.start === startTime);
     if (eventIndex === -1) return;
@@ -48,51 +65,96 @@ function showEditEventModal(dataSource, dayKey, startTime, onUpdate) {
     const footer = `<div class="flex justify-end space-x-4"><button id="modal-cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">Cancel</button><button id="modal-confirm-edit-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Save Changes</button></div>`;
 
     showDialog(`Edit ${event.type} Activity`, body, footer, (dialog) => {
-        dialog.addEventListener('click', e => {
+        dialog.addEventListener('click', async e => {
             const target = e.target.closest('button');
             if (!target) return;
             if (target.id === 'modal-cancel-btn') closeDialog(dialog);
             else if (target.id === 'modal-confirm-edit-btn') {
                 const newStart = dialog.querySelector('#edit-event-start').value;
                 const newEnd = dialog.querySelector('#edit-event-end').value;
-                eventList[eventIndex] = { ...event, start: newStart, end: newEnd };
-                onUpdate();
-                closeDialog(dialog);
+                
+                target.disabled = true;
+                target.textContent = 'Saving...';
+                try {
+                    if (onSave) {
+                        await onSave({ ...event, start: newStart, end: newEnd });
+                    } else {
+                        eventList[eventIndex] = { ...event, start: newStart, end: newEnd };
+                    }
+                    onUpdate();
+                    closeDialog(dialog);
+                } catch (error) {
+                    alert('Failed to update: ' + error.message);
+                } finally {
+                    target.disabled = false;
+                    target.textContent = 'Save Changes';
+                }
             } else if (target.id === 'delete-event-btn') {
-                eventList.splice(eventIndex, 1);
-                onUpdate();
-                closeDialog(dialog);
+                target.disabled = true;
+                target.textContent = 'Deleting...';
+                try {
+                    if (onDelete) {
+                        await onDelete(event);
+                    } else {
+                        eventList.splice(eventIndex, 1);
+                    }
+                    onUpdate();
+                    closeDialog(dialog);
+                } catch (error) {
+                    alert('Failed to delete: ' + error.message);
+                } finally {
+                    target.disabled = false;
+                    target.textContent = 'Delete Event';
+                }
             }
         });
     });
 }
 
-function showSetAllTimesModal(dataSource, type, onUpdate) {
+function showSetAllTimesModal(dataSource, type, onUpdate, onSave) {
     const defaultTimes = type === 'school' ? config.defaultSchoolTimes : config.defaultSleepTimes;
     const body = `<div class="grid grid-cols-2 gap-4"><div><label class="text-sm text-gray-400">Start Time</label><input type="time" id="set-all-start" value="${defaultTimes.start}" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"></div><div><label class="text-sm text-gray-400">End Time</label><input type="time" id="set-all-end" value="${defaultTimes.end}" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"></div></div>`;
     const footer = `<div class="flex justify-end space-x-4"><button id="modal-cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">Cancel</button><button id="modal-confirm-set-all-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Apply to All Days</button></div>`;
 
     showDialog(`Set All ${type.charAt(0).toUpperCase() + type.slice(1)} Times`, body, footer, (dialog) => {
-        dialog.addEventListener('click', e => {
+        dialog.addEventListener('click', async e => {
             if (e.target.closest('#modal-cancel-btn')) closeDialog(dialog);
             if (e.target.closest('#modal-confirm-set-all-btn')) {
                 const newStart = dialog.querySelector('#set-all-start').value;
                 const newEnd = dialog.querySelector('#set-all-end').value;
-                const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
-                const daysToUpdate = type === 'school' ? weekdays : config.daysOfWeek;
+                const btn = e.target.closest('#modal-confirm-set-all-btn');
                 
-                daysToUpdate.forEach(day => {
-                    const dayKey = day.toLowerCase();
-                    const eventIndex = dataSource.availability[dayKey].findIndex(event => event.type === type);
-                    if (eventIndex > -1) {
-                        dataSource.availability[dayKey][eventIndex].start = newStart;
-                        dataSource.availability[dayKey][eventIndex].end = newEnd;
+                btn.disabled = true;
+                btn.textContent = 'Applying...';
+
+                try {
+                    if (onSave) {
+                        await onSave(type, newStart, newEnd);
                     } else {
-                        dataSource.availability[dayKey].push({ type, start: newStart, end: newEnd });
+                        // Local logic for Wizard
+                        const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
+                        const daysToUpdate = type === 'school' ? weekdays : config.daysOfWeek;
+                        
+                        daysToUpdate.forEach(day => {
+                            const dayKey = day.toLowerCase();
+                            const eventIndex = dataSource.availability[dayKey].findIndex(event => event.type === type);
+                            if (eventIndex > -1) {
+                                dataSource.availability[dayKey][eventIndex].start = newStart;
+                                dataSource.availability[dayKey][eventIndex].end = newEnd;
+                            } else {
+                                dataSource.availability[dayKey].push({ type, start: newStart, end: newEnd });
+                            }
+                        });
                     }
-                });
-                onUpdate();
-                closeDialog(dialog);
+                    onUpdate();
+                    closeDialog(dialog);
+                } catch (error) {
+                    console.error(error);
+                    alert('Failed to apply changes: ' + error.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Apply to All Days';
+                }
             }
         });
     });
@@ -130,7 +192,7 @@ export function renderTimetableComponent(isWizard, dataSource, tuitions = []) {
         const text = isTuition ? event.subject : event.type;
         const cursorClass = type !== 'tuition' && isWizard ? 'cursor-pointer' : '';
 
-        return `<div class="event-bubble ${cursorClass} hover:opacity-80" style="background-color: ${color}; top: ${top}px; height: ${height}px;" data-type="${type}" data-start="${event.start}" data-end="${event.end}">
+        return `<div class="event-bubble ${cursorClass} hover:opacity-80" style="background-color: ${color}; top: ${top}px; height: ${height}px;" data-type="${type}" data-start="${event.start}" data-end="${event.end}" data-id="${event.id || ''}">
                     <p class="font-bold capitalize">${text}</p>
                     <p>${event.start} - ${event.end}</p>
                 </div>`;

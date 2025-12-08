@@ -1,5 +1,22 @@
 import { appState, config } from '../config.js';
-import { fetchTeacher, fetchParent, fetchStudent, fetchTeachersBySpecialty, fetchTimezones, fetchCurrencies, updateStudent, postStudent, fetchTeacherSpecialties, updateTeacher, updateParent, addTeacherSpecialty, deleteTeacherSpecialty } from '../api.js';
+import { 
+    fetchTeacher, 
+    fetchParent, 
+    fetchStudent, 
+    fetchTeachersBySpecialty, 
+    fetchTimezones, 
+    fetchCurrencies, 
+    updateStudent, 
+    postStudent, 
+    fetchTeacherSpecialties, 
+    updateTeacher, 
+    updateParent, 
+    addTeacherSpecialty, 
+    deleteTeacherSpecialty,
+    addStudentAvailability,
+    updateStudentAvailability,
+    deleteStudentAvailability
+} from '../api.js';
 import { showLoadingOverlay, hideStatusOverlay, showModal, showConfirmDialog, showStatusMessage, closeModal } from './modals.js';
 import { renderPage } from './navigation.js';
 import { renderTimetableComponent, wizardTimetableHandlers } from './timetable.js';
@@ -22,6 +39,7 @@ function mapApiIntervalsToUi(apiIntervals) {
         const dayName = config.daysOfWeek[interval.day_of_week - 1]?.toLowerCase();
         if (dayName) {
             availability[dayName].push({
+                id: interval.id, // Include ID for updates/deletes
                 type: interval.availability_type,
                 start: interval.start_time.slice(0, 5), // HH:MM:SS -> HH:MM
                 end: interval.end_time.slice(0, 5)
@@ -263,7 +281,7 @@ export async function renderStudentProfile(studentId, mode = 'view') {
     if (mode === 'create' || mode === 'edit') {
         tempStudentProfileData = {
             ...student,
-            availability: mode === 'create' ? {} : mapApiIntervalsToUi(student.student_availability_intervals || []),
+            availability: mode === 'create' ? {} : mapApiIntervalsToUi(student.availability_intervals || []),
             student_subjects: mode === 'create' ? [] : (student.student_subjects || [])
         };
         // Ensure all days exist in availability
@@ -428,10 +446,6 @@ export async function renderStudentProfile(studentId, mode = 'view') {
                 <div id="profile-timetable-wrapper">
                     ${renderTimetableComponent(true, tempStudentProfileData)}
                 </div>
-                ${!isCreate ? `
-                <div class="mt-6 text-right">
-                    <button id="save-student-availability-btn" data-student-id="${studentId}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md transition duration-300">Save Availability</button>
-                </div>` : ''}
             </div>
         `;
     }
@@ -459,20 +473,122 @@ export function updateProfileTimetable() {
     }
 }
 
-export function handleProfileTimetableAction(action, ...args) {
+export async function handleProfileTimetableAction(action, ...args) {
     if (!tempStudentProfileData) return;
 
     const updateCallback = () => updateProfileTimetable();
+    
+    // Check if we are in "Create Mode" (no student ID yet)
+    const isCreateMode = !tempStudentProfileData.id;
+    const studentId = tempStudentProfileData.id;
+
+    // --- API Callbacks for Immediate Mode ---
+    const onSaveCallback = async (data) => {
+        if (isCreateMode) return; // Wizard handles its own saving via local array
+        
+        const dayIndex = config.daysOfWeek.findIndex(d => d.toLowerCase() === args[0].toLowerCase()) + 1;
+        
+        if (action === 'add') {
+            await addStudentAvailability(studentId, {
+                day_of_week: dayIndex,
+                start_time: data.start + ":00",
+                end_time: data.end + ":00",
+                availability_type: data.type
+            });
+        } else if (action === 'edit') {
+            await updateStudentAvailability(studentId, data.id, {
+                start_time: data.start + ":00",
+                end_time: data.end + ":00",
+                // Type isn't usually editable in the modal, but if it were:
+                // availability_type: data.type 
+            });
+        }
+        // After API success, refresh data
+        const updatedStudent = await fetchStudent(studentId);
+        tempStudentProfileData.availability = mapApiIntervalsToUi(updatedStudent.availability_intervals);
+    };
+
+    const onDeleteCallback = async (data) => {
+        if (isCreateMode) return;
+        if (!data.id) {
+            throw new Error("Cannot delete interval without ID.");
+        }
+        await deleteStudentAvailability(studentId, data.id);
+        
+        // Refresh
+        const updatedStudent = await fetchStudent(studentId);
+        tempStudentProfileData.availability = mapApiIntervalsToUi(updatedStudent.availability_intervals);
+    };
+
+    const onSetAllCallback = async (type, start, end) => {
+        if (isCreateMode) return; 
+        // Logic: For each relevant day, check if an interval of 'type' exists.
+        // If exists: Update it.
+        // If not exists: Create it.
+        // Note: This might not handle deleting duplicates if multiple exist per day, but assumes clean state.
+        
+        const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
+        const daysToUpdate = type === 'school' ? weekdays : config.daysOfWeek; // sleep = all days
+        
+        const promises = daysToUpdate.map(async (dayName) => {
+            const dayKey = dayName.toLowerCase();
+            const dayIndex = config.daysOfWeek.indexOf(dayName) + 1; // 1-based index for API
+            
+            // Find existing interval for this day and type
+            // Use tempStudentProfileData as the source of truth for IDs
+            const existingInterval = tempStudentProfileData.availability[dayKey]?.find(i => i.type === type);
+            
+            if (existingInterval && existingInterval.id) {
+                return updateStudentAvailability(studentId, existingInterval.id, {
+                    start_time: start + ":00",
+                    end_time: end + ":00"
+                });
+            } else {
+                return addStudentAvailability(studentId, {
+                    day_of_week: dayIndex,
+                    start_time: start + ":00",
+                    end_time: end + ":00",
+                    availability_type: type
+                });
+            }
+        });
+
+        await Promise.all(promises);
+        
+        // Refresh data after bulk operation
+        const updatedStudent = await fetchStudent(studentId);
+        tempStudentProfileData.availability = mapApiIntervalsToUi(updatedStudent.availability_intervals);
+    };
+
 
     if (action === 'add') {
         // args: [dayKey, pixelY]
-        wizardTimetableHandlers.showAddEventModal(tempStudentProfileData, args[0], args[1], updateCallback);
+        // Pass onSaveCallback only if NOT in create mode
+        wizardTimetableHandlers.showAddEventModal(
+            tempStudentProfileData, 
+            args[0], 
+            args[1], 
+            updateCallback, 
+            isCreateMode ? null : onSaveCallback
+        );
     } else if (action === 'edit') {
         // args: [dayKey, startTime]
-        wizardTimetableHandlers.showEditEventModal(tempStudentProfileData, args[0], args[1], updateCallback);
+        wizardTimetableHandlers.showEditEventModal(
+            tempStudentProfileData, 
+            args[0], 
+            args[1], 
+            updateCallback, 
+            isCreateMode ? null : onSaveCallback,
+            isCreateMode ? null : onDeleteCallback
+        );
     } else if (action === 'setAll') {
         // args: [type]
-        wizardTimetableHandlers.showSetAllTimesModal(tempStudentProfileData, args[0], updateCallback);
+        wizardTimetableHandlers.showSetAllTimesModal(
+            tempStudentProfileData, 
+            args[0], 
+            updateCallback,
+            isCreateMode ? null : onSetAllCallback // Pass the bulk update callback
+        );
     }
 }
 
@@ -524,25 +640,8 @@ export async function handleSaveStudentDetails(studentId) {
     }
 }
 
-// 2. Save Availability
-export async function handleSaveStudentAvailability(studentId) {
-    if (!tempStudentProfileData) return;
-
-    showLoadingOverlay('Saving Availability...');
-    try {
-        const apiAvailability = mapUiAvailabilityToApi(tempStudentProfileData.availability);
-        const payload = {
-            student_availability_intervals: apiAvailability
-        };
-
-        await updateStudent(studentId, payload);
-        showStatusMessage('success', 'Availability saved successfully.');
-    } catch (error) {
-        showStatusMessage('error', error.message);
-    } finally {
-        hideStatusOverlay();
-    }
-}
+// 2. Save Availability (Deprecated/Removed)
+// Availability is now saved immediately via handleProfileTimetableAction using the new endpoints.
 
 // 3. Create Student (Combines everything)
 export async function handleCreateStudent() {

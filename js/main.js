@@ -9,7 +9,7 @@ import { confirmDeleteStudent } from './ui/templates.js';
 import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback, showModal, showConfirmDialog } from './ui/modals.js';
 import { renderTeacherTuitionLogsPage, handleVoidLog, showChargesDetail, showAddTuitionLogModal, renderTeacherPaymentLogsPage, showAddPaymentLogModal, handleVoidPaymentLog, showMeetingLinkModal, showMeetingLinkDetailsModal, handleTuitionFilterTypeChange, handleTuitionFilterEntityChange, handlePaymentFilterTypeChange, handlePaymentFilterEntityChange } from './ui/teacher.js';
 import { renderNotesList, showCreateNoteModal, showUpdateNoteModal } from './ui/notes.js';
-import { renderStudentProfile, handleSaveStudentDetails, handleSaveStudentAvailability, handleCreateStudent, showAddSubjectModal, handleRemoveSubject, handleProfileTimetableAction, updateProfileTimetable } from './ui/profile.js';
+import { renderStudentProfile, handleSaveStudentDetails, handleCreateStudent, showAddSubjectModal, handleRemoveSubject, handleProfileTimetableAction, updateProfileTimetable } from './ui/profile.js';
 
 // --- STATE FOR WIZARD ---
 let pendingSpecialties = [];
@@ -599,11 +599,6 @@ document.body.addEventListener('click', (e) => {
     if (closest('#save-student-details-btn')) {
         const btn = closest('#save-student-details-btn');
         handleSaveStudentDetails(btn.dataset.studentId);
-    }
-
-    if (closest('#save-student-availability-btn')) {
-        const btn = closest('#save-student-availability-btn');
-        handleSaveStudentAvailability(btn.dataset.studentId);
     }
 
     if (closest('#create-student-btn')) {

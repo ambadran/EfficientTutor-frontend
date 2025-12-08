@@ -235,6 +235,27 @@ export const updateStudent = (id, data) => apiRequest(`/students/${id}`, {
     method: 'PATCH', body: JSON.stringify(data)
 });
 
+// --- NEW: Availability Management (Immediate Updates) ---
+export const addStudentAvailability = (studentId, intervalData) => apiRequest(`/students/${studentId}/availability`, {
+    method: 'POST', body: JSON.stringify(intervalData)
+});
+export const updateStudentAvailability = (studentId, intervalId, intervalData) => apiRequest(`/students/${studentId}/availability/${intervalId}`, {
+    method: 'PATCH', body: JSON.stringify(intervalData)
+});
+export const deleteStudentAvailability = (studentId, intervalId) => apiRequest(`/students/${studentId}/availability/${intervalId}`, {
+    method: 'DELETE'
+});
+
+export const addTeacherAvailability = (teacherId, intervalData) => apiRequest(`/teachers/${teacherId}/availability`, {
+    method: 'POST', body: JSON.stringify(intervalData)
+});
+export const updateTeacherAvailability = (teacherId, intervalId, intervalData) => apiRequest(`/teachers/${teacherId}/availability/${intervalId}`, {
+    method: 'PATCH', body: JSON.stringify(intervalData)
+});
+export const deleteTeacherAvailability = (teacherId, intervalId) => apiRequest(`/teachers/${teacherId}/availability/${intervalId}`, {
+    method: 'DELETE'
+});
+
 // --- Metadata (TODO: Replace with actual endpoints) ---
 export const fetchTimezones = async () => {
     // TODO: Replace with backend endpoint when available
