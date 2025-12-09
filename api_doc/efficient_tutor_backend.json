@@ -898,6 +898,115 @@
         }
       }
     },
+    "/students/{student_id}/subjects": {
+      "post": {
+        "tags": [
+          "Students"
+        ],
+        "summary": "Add Student Subject",
+        "operationId": "add_student_subject_students__student_id__subjects_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Student Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudentSubjectWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentSubjectRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/students/{student_id}/subjects/{subject_id}": {
+      "delete": {
+        "tags": [
+          "Students"
+        ],
+        "summary": "Delete Student Subject",
+        "operationId": "delete_student_subject_students__student_id__subjects__subject_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Student Id"
+            }
+          },
+          {
+            "name": "subject_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Subject Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/teachers/": {
       "get": {
         "tags": [
@@ -2974,8 +3083,7 @@
             "title": "End Time"
           },
           "availability_type": {
-            "type": "string",
-            "title": "Availability Type"
+            "$ref": "#/components/schemas/AvailabilityTypeEnum"
           }
         },
         "type": "object",
@@ -3010,8 +3118,7 @@
             "title": "End Time"
           },
           "availability_type": {
-            "type": "string",
-            "title": "Availability Type"
+            "$ref": "#/components/schemas/AvailabilityTypeEnum"
           }
         },
         "type": "object",
@@ -3067,18 +3174,29 @@
           "availability_type": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/AvailabilityTypeEnum"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Availability Type"
+            ]
           }
         },
         "type": "object",
         "title": "AvailabilityIntervalUpdate",
         "description": "Pydantic model for updating an availability interval.\nAll fields are optional."
+      },
+      "AvailabilityTypeEnum": {
+        "type": "string",
+        "enum": [
+          "sleep",
+          "school",
+          "sports",
+          "work",
+          "personal",
+          "others"
+        ],
+        "title": "AvailabilityTypeEnum"
       },
       "Body_login_for_access_token_auth_login_post": {
         "properties": {
@@ -4305,6 +4423,16 @@
             ],
             "title": "Grade"
           },
+          "educational_system": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EducationalSystemEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "student_subjects": {
             "items": {
               "$ref": "#/components/schemas/StudentSubjectWrite"
@@ -4405,6 +4533,16 @@
               }
             ],
             "title": "Grade"
+          },
+          "educational_system": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EducationalSystemEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "generated_password": {
             "anyOf": [
@@ -4667,6 +4805,16 @@
               }
             ],
             "title": "Grade"
+          },
+          "educational_system": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EducationalSystemEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "student_subjects": {
             "anyOf": [

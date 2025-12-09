@@ -89,7 +89,7 @@ export async function loginUser(email, password) {
     return data;
 }
 
-export const signupUser = (email, password, firstName, lastName, role, specialties = []) => {
+export const signupUser = (email, password, firstName, lastName, role, specialties = [], availabilityIntervals = []) => {
     const endpoint = role === 'parent' ? '/auth/signup/parent' : '/auth/signup/teacher';
     
     const payload = { 
@@ -101,6 +101,7 @@ export const signupUser = (email, password, firstName, lastName, role, specialti
 
     if (role === 'teacher') {
         payload.teacher_specialties = specialties;
+        payload.availability_intervals = availabilityIntervals;
     }
 
     return apiRequest(endpoint, {

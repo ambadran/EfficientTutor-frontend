@@ -119,6 +119,15 @@ export function renderLoginPage() {
                         <p class="text-center text-gray-500 text-sm py-2">No specialties added yet.</p>
                     </div>
                 </div>
+
+                <!-- STEP 3: Teacher Availability (Hidden by default) -->
+                <div id="step-3-container" class="hidden space-y-4">
+                    <h4 class="text-lg font-semibold text-indigo-400 border-b border-gray-700 pb-2">Set Availability</h4>
+                    <p class="text-sm text-gray-400">Click on the timeline to add your work hours or other activities.</p>
+                    <div id="teacher-signup-timetable-container">
+                        <!-- Timetable will be rendered here via main.js -->
+                    </div>
+                </div>
                 
                 <div id="auth-feedback" class="text-center min-h-[1.5rem]"></div>
 

@@ -15,7 +15,10 @@ import {
     deleteTeacherSpecialty,
     addStudentAvailability,
     updateStudentAvailability,
-    deleteStudentAvailability
+    deleteStudentAvailability,
+    addTeacherAvailability,
+    updateTeacherAvailability,
+    deleteTeacherAvailability
 } from '../api.js';
 import { showLoadingOverlay, hideStatusOverlay, showModal, showConfirmDialog, showStatusMessage, closeModal } from './modals.js';
 import { renderPage } from './navigation.js';
@@ -110,6 +113,25 @@ export async function renderTeacherProfile(userId = appState.currentUser?.id) {
         fetchCurrencies()
     ]);
 
+    // Use temp state for availability if available (though profile is usually view-only unless we are in a 'mode', but here we are in the main profile page)
+    // Actually, we should initialize tempStudentProfileData structure for teacher editing too if we want to use the same logic.
+    // However, teacher profile editing is currently different (modal vs inline).
+    // Let's adapt tempStudentProfileData to be generic or use a separate state.
+    // For now, let's reuse tempStudentProfileData but populate it with teacher data.
+    
+    tempStudentProfileData = {
+        id: teacher.id,
+        availability: mapApiIntervalsToUi(teacher.availability_intervals || [])
+    };
+    // Ensure all days exist
+    config.daysOfWeek.forEach(day => {
+        const key = day.toLowerCase();
+        if (!tempStudentProfileData.availability[key]) {
+            tempStudentProfileData.availability[key] = [];
+        }
+    });
+
+
     // --- Section 1: Personal Information ---
     const timezoneOptions = timezones.map(tz => 
         `<option value="${tz}" ${teacher.timezone === tz ? 'selected' : ''}>${tz}</option>`
@@ -162,7 +184,19 @@ export async function renderTeacherProfile(userId = appState.currentUser?.id) {
         </div>
     `;
 
-    // --- Section 2: Specialties ---
+    // --- Section 2: Availability ---
+    const availabilityHTML = `
+        <div class="bg-gray-800 p-6 rounded-lg shadow-md mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-indigo-300">Availability</h3>
+            </div>
+            <div id="profile-timetable-wrapper">
+                ${renderTimetableComponent(true, tempStudentProfileData)}
+            </div>
+        </div>
+    `;
+
+    // --- Section 3: Specialties ---
     const specialtyListHTML = specialties.length > 0 
         ? specialties.map(spec => `
             <div class="flex justify-between items-center bg-gray-700 p-3 rounded-md mb-2 border border-gray-600">
@@ -194,10 +228,20 @@ export async function renderTeacherProfile(userId = appState.currentUser?.id) {
         </div>
     `;
 
+    // Update the 'Set All School' button to 'Set All Work' for teachers
+    setTimeout(() => {
+        const schoolBtn = document.querySelector('#profile-timetable-wrapper button[data-type="school"]');
+        if (schoolBtn) {
+            schoolBtn.dataset.type = 'work';
+            schoolBtn.innerHTML = '<i class="fas fa-briefcase mr-2"></i> Set All Work Times';
+        }
+    }, 0);
+
     return `
         <div class="max-w-4xl mx-auto">
             <h2 class="text-2xl font-bold mb-6">Teacher Profile</h2>
             ${personalInfoHTML}
+            ${availabilityHTML}
             ${specialtiesHTML}
         </div>
     `;
@@ -479,8 +523,11 @@ export async function handleProfileTimetableAction(action, ...args) {
     const updateCallback = () => updateProfileTimetable();
     
     // Check if we are in "Create Mode" (no student ID yet)
+    // Also Check if we are editing a Teacher (userId === studentId in temp data, or role check)
+    // NOTE: tempStudentProfileData.id will be the Teacher's ID when editing teacher profile.
     const isCreateMode = !tempStudentProfileData.id;
-    const studentId = tempStudentProfileData.id;
+    const entityId = tempStudentProfileData.id;
+    const isTeacher = appState.currentUser.role === 'teacher' && appState.currentUser.id === entityId;
 
     // --- API Callbacks for Immediate Mode ---
     const onSaveCallback = async (data) => {
@@ -488,24 +535,38 @@ export async function handleProfileTimetableAction(action, ...args) {
         
         const dayIndex = config.daysOfWeek.findIndex(d => d.toLowerCase() === args[0].toLowerCase()) + 1;
         
+        const payload = {
+            day_of_week: dayIndex,
+            start_time: data.start + ":00",
+            end_time: data.end + ":00",
+            availability_type: data.type
+        };
+
         if (action === 'add') {
-            await addStudentAvailability(studentId, {
-                day_of_week: dayIndex,
-                start_time: data.start + ":00",
-                end_time: data.end + ":00",
-                availability_type: data.type
-            });
+            if (isTeacher) {
+                await addTeacherAvailability(entityId, payload);
+            } else {
+                await addStudentAvailability(entityId, payload);
+            }
         } else if (action === 'edit') {
-            await updateStudentAvailability(studentId, data.id, {
+            const updatePayload = {
                 start_time: data.start + ":00",
-                end_time: data.end + ":00",
-                // Type isn't usually editable in the modal, but if it were:
-                // availability_type: data.type 
-            });
+                end_time: data.end + ":00"
+            };
+            if (isTeacher) {
+                await updateTeacherAvailability(entityId, data.id, updatePayload);
+            } else {
+                await updateStudentAvailability(entityId, data.id, updatePayload);
+            }
         }
         // After API success, refresh data
-        const updatedStudent = await fetchStudent(studentId);
-        tempStudentProfileData.availability = mapApiIntervalsToUi(updatedStudent.availability_intervals);
+        let updatedEntity;
+        if (isTeacher) {
+            updatedEntity = await fetchTeacher(entityId);
+        } else {
+            updatedEntity = await fetchStudent(entityId);
+        }
+        tempStudentProfileData.availability = mapApiIntervalsToUi(updatedEntity.availability_intervals);
     };
 
     const onDeleteCallback = async (data) => {
@@ -513,51 +574,67 @@ export async function handleProfileTimetableAction(action, ...args) {
         if (!data.id) {
             throw new Error("Cannot delete interval without ID.");
         }
-        await deleteStudentAvailability(studentId, data.id);
+        
+        if (isTeacher) {
+            await deleteTeacherAvailability(entityId, data.id);
+        } else {
+            await deleteStudentAvailability(entityId, data.id);
+        }
         
         // Refresh
-        const updatedStudent = await fetchStudent(studentId);
-        tempStudentProfileData.availability = mapApiIntervalsToUi(updatedStudent.availability_intervals);
+        let updatedEntity;
+        if (isTeacher) {
+            updatedEntity = await fetchTeacher(entityId);
+        } else {
+            updatedEntity = await fetchStudent(entityId);
+        }
+        tempStudentProfileData.availability = mapApiIntervalsToUi(updatedEntity.availability_intervals);
     };
 
     const onSetAllCallback = async (type, start, end) => {
         if (isCreateMode) return; 
-        // Logic: For each relevant day, check if an interval of 'type' exists.
-        // If exists: Update it.
-        // If not exists: Create it.
-        // Note: This might not handle deleting duplicates if multiple exist per day, but assumes clean state.
         
         const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
-        const daysToUpdate = type === 'school' ? weekdays : config.daysOfWeek; // sleep = all days
+        const daysToUpdate = (type === 'school' || type === 'work') ? weekdays : config.daysOfWeek;
         
         const promises = daysToUpdate.map(async (dayName) => {
             const dayKey = dayName.toLowerCase();
             const dayIndex = config.daysOfWeek.indexOf(dayName) + 1; // 1-based index for API
             
             // Find existing interval for this day and type
-            // Use tempStudentProfileData as the source of truth for IDs
             const existingInterval = tempStudentProfileData.availability[dayKey]?.find(i => i.type === type);
             
             if (existingInterval && existingInterval.id) {
-                return updateStudentAvailability(studentId, existingInterval.id, {
+                const payload = {
                     start_time: start + ":00",
                     end_time: end + ":00"
-                });
+                };
+                return isTeacher 
+                    ? updateTeacherAvailability(entityId, existingInterval.id, payload)
+                    : updateStudentAvailability(entityId, existingInterval.id, payload);
             } else {
-                return addStudentAvailability(studentId, {
+                const payload = {
                     day_of_week: dayIndex,
                     start_time: start + ":00",
                     end_time: end + ":00",
                     availability_type: type
-                });
+                };
+                return isTeacher
+                    ? addTeacherAvailability(entityId, payload)
+                    : addStudentAvailability(entityId, payload);
             }
         });
 
         await Promise.all(promises);
         
         // Refresh data after bulk operation
-        const updatedStudent = await fetchStudent(studentId);
-        tempStudentProfileData.availability = mapApiIntervalsToUi(updatedStudent.availability_intervals);
+        let updatedEntity;
+        if (isTeacher) {
+            updatedEntity = await fetchTeacher(entityId);
+        } else {
+            updatedEntity = await fetchStudent(entityId);
+        }
+        tempStudentProfileData.availability = mapApiIntervalsToUi(updatedEntity.availability_intervals);
     };
 
 

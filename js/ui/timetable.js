@@ -16,7 +16,7 @@ function showAddEventModal(dataSource, dayKey, pixelY, onUpdate, onSave) {
     const minute = Math.floor((totalMinutes % 60) / 15) * 15;
     const startTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
     
-    const body = `<div class="space-y-4"><div><label class="text-sm text-gray-400">Activity Type</label><select id="add-event-type" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"><option value="sports">Sports Activity</option><option value="others">Others</option></select></div><div class="grid grid-cols-2 gap-4"><div><label class="text-sm text-gray-400">Start Time</label><input type="time" id="add-event-start" value="${startTime}" step="900" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"></div><div><label class="text-sm text-gray-400">End Time</label><input type="time" id="add-event-end" value="${startTime}" step="900" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"></div></div></div>`;
+    const body = `<div class="space-y-4"><div><label class="text-sm text-gray-400">Activity Type</label><select id="add-event-type" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"><option value="sports">Sports Activity</option><option value="work">Work</option><option value="personal">Personal</option><option value="others">Others</option></select></div><div class="grid grid-cols-2 gap-4"><div><label class="text-sm text-gray-400">Start Time</label><input type="time" id="add-event-start" value="${startTime}" step="900" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"></div><div><label class="text-sm text-gray-400">End Time</label><input type="time" id="add-event-end" value="${startTime}" step="900" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"></div></div></div>`;
     const footer = `<div class="flex justify-end space-x-4"><button id="modal-cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">Cancel</button><button id="modal-confirm-add-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Add</button></div>`;
 
     showDialog('Add Activity', body, footer, (dialog) => {
@@ -112,7 +112,7 @@ function showEditEventModal(dataSource, dayKey, startTime, onUpdate, onSave, onD
 }
 
 function showSetAllTimesModal(dataSource, type, onUpdate, onSave) {
-    const defaultTimes = type === 'school' ? config.defaultSchoolTimes : config.defaultSleepTimes;
+    const defaultTimes = (type === 'school' || type === 'work') ? config.defaultSchoolTimes : config.defaultSleepTimes;
     const body = `<div class="grid grid-cols-2 gap-4"><div><label class="text-sm text-gray-400">Start Time</label><input type="time" id="set-all-start" value="${defaultTimes.start}" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"></div><div><label class="text-sm text-gray-400">End Time</label><input type="time" id="set-all-end" value="${defaultTimes.end}" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"></div></div>`;
     const footer = `<div class="flex justify-end space-x-4"><button id="modal-cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">Cancel</button><button id="modal-confirm-set-all-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Apply to All Days</button></div>`;
 
@@ -213,8 +213,8 @@ export function renderTimetableComponent(isWizard, dataSource, tuitions = []) {
 
     const wizardButtons = isWizard ? `
         <div class="flex space-x-2 mb-4">
-            <button class="set-all-times-btn flex-1 text-sm bg-gray-600 hover:bg-gray-500 rounded-md py-2" data-type="school"><i class="fas fa-school mr-2"></i> Set All School Times</button>
-            <button class="set-all-times-btn flex-1 text-sm bg-gray-600 hover:bg-gray-500 rounded-md py-2" data-type="sleep"><i class="fas fa-bed mr-2"></i> Set All Sleep Times</button>
+            <button type="button" class="set-all-times-btn flex-1 text-sm bg-gray-600 hover:bg-gray-500 rounded-md py-2" data-type="school"><i class="fas fa-school mr-2"></i> Set All School Times</button>
+            <button type="button" class="set-all-times-btn flex-1 text-sm bg-gray-600 hover:bg-gray-500 rounded-md py-2" data-type="sleep"><i class="fas fa-bed mr-2"></i> Set All Sleep Times</button>
         </div>` : '';
 
     return `

@@ -16,6 +16,7 @@ export const config = {
         others: 'var(--others-color)',
         tuition: 'var(--tuition-color)',
         sleep: 'var(--sleep-color)',
+        work: 'var(--tuition-color)', // Reusing tuition color for teacher's work
     },
     defaultSchoolTimes: { start: '06:00', end: '15:00' },
     defaultSleepTimes: { start: '22:00', end: '05:00' },
