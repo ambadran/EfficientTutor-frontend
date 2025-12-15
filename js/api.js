@@ -132,7 +132,10 @@ export const postStudent = (parentId, studentData) => {
 export const deleteStudentRequest = (studentId) => apiRequest(`/students/${studentId}`, {
     method: 'DELETE'
 });
-export const fetchTimetable = () => apiRequest(`/timetable/`);
+export const fetchTimetable = (targetUserId = null) => {
+    const query = targetUserId ? `?target_user_id=${targetUserId}` : '';
+    return apiRequest(`/timetable/${query}`);
+};
 
 // --- Student-Specific Views (Auth Needed) ---
 export const fetchMeetingLinks = () => apiRequest(`/timetable/`); // Meeting links are now part of the timetable

@@ -1599,7 +1599,7 @@
                   "items": {
                     "anyOf": [
                       {
-                        "$ref": "#/components/schemas/TuitionReadForTeacher-Output"
+                        "$ref": "#/components/schemas/TuitionReadForTeacher"
                       },
                       {
                         "$ref": "#/components/schemas/TuitionReadForParent-Output"
@@ -1681,7 +1681,7 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "#/components/schemas/TuitionReadForTeacher-Output"
+                      "$ref": "#/components/schemas/TuitionReadForTeacher"
                     },
                     {
                       "$ref": "#/components/schemas/TuitionReadForParent-Output"
@@ -1747,7 +1747,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TuitionReadForTeacher-Output"
+                  "$ref": "#/components/schemas/TuitionReadForTeacher"
                 }
               }
             }
@@ -1927,39 +1927,60 @@
           "Timetable"
         ],
         "summary": "Get Timetable",
-        "description": "Retrieves the generated timetable for the current user.\n- For a Teacher, returns their full schedule.\n- For a Parent, returns the schedules for all their children.\n- For a Student, returns their personal schedule.",
+        "description": "Retrieves the generated timetable.\nIf target_user_id is provided, retrieves the timetable for that specific user (if authorized).\nOtherwise, defaults to the current user's view.",
         "operationId": "get_timetable_timetable__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "target_user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional filter for Target User ID",
+              "title": "Target User Id"
+            },
+            "description": "Optional filter for Target User ID"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "anyOf": [
-                      {
-                        "$ref": "#/components/schemas/ScheduledTuitionReadForTeacher-Output"
-                      },
-                      {
-                        "$ref": "#/components/schemas/ScheduledTuitionReadForParent-Output"
-                      },
-                      {
-                        "$ref": "#/components/schemas/ScheduledTuitionReadForStudent-Output"
-                      }
-                    ]
-                  },
                   "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TimeTableSlot"
+                  },
                   "title": "Response Get Timetable Timetable  Get"
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        }
       }
     },
     "/tuition-logs/": {
@@ -4219,156 +4240,6 @@
         "title": "ScheduledLogInput",
         "description": "Validates the request body for creating a log from a SCHEDULED tuition."
       },
-      "ScheduledTuitionReadForParent-Input": {
-        "properties": {
-          "start_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Start Time"
-          },
-          "end_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "End Time"
-          },
-          "tuition": {
-            "$ref": "#/components/schemas/TuitionReadForParent-Input"
-          }
-        },
-        "type": "object",
-        "required": [
-          "start_time",
-          "end_time",
-          "tuition"
-        ],
-        "title": "ScheduledTuitionReadForParent",
-        "description": "API model for a scheduled tuition (Parent view)."
-      },
-      "ScheduledTuitionReadForParent-Output": {
-        "properties": {
-          "start_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Start Time"
-          },
-          "end_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "End Time"
-          },
-          "tuition": {
-            "$ref": "#/components/schemas/TuitionReadForParent-Output"
-          }
-        },
-        "type": "object",
-        "required": [
-          "start_time",
-          "end_time",
-          "tuition"
-        ],
-        "title": "ScheduledTuitionReadForParent",
-        "description": "API model for a scheduled tuition (Parent view)."
-      },
-      "ScheduledTuitionReadForStudent-Input": {
-        "properties": {
-          "start_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Start Time"
-          },
-          "end_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "End Time"
-          },
-          "tuition": {
-            "$ref": "#/components/schemas/TuitionReadForStudent-Input"
-          }
-        },
-        "type": "object",
-        "required": [
-          "start_time",
-          "end_time",
-          "tuition"
-        ],
-        "title": "ScheduledTuitionReadForStudent",
-        "description": "API model for a scheduled tuition (Student view)."
-      },
-      "ScheduledTuitionReadForStudent-Output": {
-        "properties": {
-          "start_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Start Time"
-          },
-          "end_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "End Time"
-          },
-          "tuition": {
-            "$ref": "#/components/schemas/TuitionReadForStudent-Output"
-          }
-        },
-        "type": "object",
-        "required": [
-          "start_time",
-          "end_time",
-          "tuition"
-        ],
-        "title": "ScheduledTuitionReadForStudent",
-        "description": "API model for a scheduled tuition (Student view)."
-      },
-      "ScheduledTuitionReadForTeacher-Input": {
-        "properties": {
-          "start_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Start Time"
-          },
-          "end_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "End Time"
-          },
-          "tuition": {
-            "$ref": "#/components/schemas/TuitionReadForTeacher-Input"
-          }
-        },
-        "type": "object",
-        "required": [
-          "start_time",
-          "end_time",
-          "tuition"
-        ],
-        "title": "ScheduledTuitionReadForTeacher",
-        "description": "API model for a scheduled tuition (Teacher view)."
-      },
-      "ScheduledTuitionReadForTeacher-Output": {
-        "properties": {
-          "start_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Start Time"
-          },
-          "end_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "End Time"
-          },
-          "tuition": {
-            "$ref": "#/components/schemas/TuitionReadForTeacher-Output"
-          }
-        },
-        "type": "object",
-        "required": [
-          "start_time",
-          "end_time",
-          "tuition"
-        ],
-        "title": "ScheduledTuitionReadForTeacher",
-        "description": "API model for a scheduled tuition (Teacher view)."
-      },
       "StudentCreate": {
         "properties": {
           "first_name": {
@@ -5119,6 +4990,88 @@
         "type": "object",
         "title": "TeacherUpdate",
         "description": "Pydantic model for validating the JSON payload when UPDATING a teacher.\nAll fields are optional to allow for partial updates."
+      },
+      "TimeTableSlot": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slot_type": {
+            "$ref": "#/components/schemas/TimeTableSlotType"
+          },
+          "day_of_week": {
+            "type": "integer",
+            "title": "Day Of Week",
+            "description": "1=Monday, 7=Sunday"
+          },
+          "day_name": {
+            "type": "string",
+            "title": "Day Name",
+            "description": "e.g. 'Monday'"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "time",
+            "title": "End Time"
+          },
+          "object_uuid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Uuid",
+            "description": "ID of the Tuition or AvailabilityInterval. None if masked."
+          },
+          "next_occurrence_start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Next Occurrence Start"
+          },
+          "next_occurrence_end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Next Occurrence End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "slot_type",
+          "day_of_week",
+          "day_name",
+          "start_time",
+          "end_time",
+          "next_occurrence_start",
+          "next_occurrence_end"
+        ],
+        "title": "TimeTableSlot",
+        "description": "Unified model for a single slot in the timetable.\nContains both absolute data from DB and relativistic calculated data."
+      },
+      "TimeTableSlotType": {
+        "type": "string",
+        "enum": [
+          "Tuition",
+          "Availability",
+          "Other"
+        ],
+        "title": "TimeTableSlotType"
       },
       "Token": {
         "properties": {
@@ -6047,70 +6000,7 @@
         "title": "TuitionReadForStudent",
         "description": "The API model for a tuition as seen by a STUDENT.\nShows NO financial details."
       },
-      "TuitionReadForTeacher-Input": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "subject": {
-            "$ref": "#/components/schemas/SubjectEnum"
-          },
-          "educational_system": {
-            "$ref": "#/components/schemas/EducationalSystemEnum"
-          },
-          "grade": {
-            "type": "integer",
-            "maximum": 12,
-            "minimum": 1,
-            "title": "Grade"
-          },
-          "lesson_index": {
-            "type": "integer",
-            "title": "Lesson Index"
-          },
-          "min_duration_minutes": {
-            "type": "integer",
-            "title": "Min Duration Minutes"
-          },
-          "max_duration_minutes": {
-            "type": "integer",
-            "title": "Max Duration Minutes"
-          },
-          "meeting_link": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MeetingLinkRead"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "charges": {
-            "items": {
-              "$ref": "#/components/schemas/TuitionChargeDetailRead-Input"
-            },
-            "type": "array",
-            "title": "Charges"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "subject",
-          "educational_system",
-          "grade",
-          "lesson_index",
-          "min_duration_minutes",
-          "max_duration_minutes",
-          "charges"
-        ],
-        "title": "TuitionReadForTeacher",
-        "description": "The API model for a tuition as seen by a TEACHER.\nShows full financial details."
-      },
-      "TuitionReadForTeacher-Output": {
+      "TuitionReadForTeacher": {
         "properties": {
           "id": {
             "type": "string",

@@ -611,22 +611,34 @@ function renderTuitionCard(item, role) {
 export async function renderTuitionsPage() {
     try {
         showLoadingOverlay('Loading tuitions...');
-        const [scheduledTuitions, allTuitions] = await Promise.all([fetchTimetable(), fetchTuitions()]);
+        const [timetableSlots, allTuitions] = await Promise.all([fetchTimetable(), fetchTuitions()]);
         
         // --- Merge Logic ---
         const unifiedTuitions = [];
         const scheduledTuitionIds = new Set();
+        const tuitionMap = new Map();
 
-        // Add scheduled tuitions first
-        if (Array.isArray(scheduledTuitions)) {
-            scheduledTuitions.forEach(item => {
-                if (item.tuition) {
-                    unifiedTuitions.push(item);
-                    scheduledTuitionIds.add(item.tuition.id);
+        // Index all tuitions for fast lookup
+        if (Array.isArray(allTuitions)) {
+            allTuitions.forEach(t => tuitionMap.set(t.id, t));
+        }
+
+        // Process Timetable Slots (Only Type 'Tuition')
+        if (Array.isArray(timetableSlots)) {
+            timetableSlots.forEach(slot => {
+                if (slot.slot_type === 'Tuition' && slot.object_uuid) {
+                    const tuition = tuitionMap.get(slot.object_uuid);
+                    if (tuition) {
+                        unifiedTuitions.push({
+                            start_time: slot.next_occurrence_start,
+                            end_time: slot.next_occurrence_end,
+                            tuition: tuition
+                        });
+                        scheduledTuitionIds.add(slot.object_uuid);
+                    }
                 }
             });
         }
-
 
         // Add unscheduled tuitions
         if (Array.isArray(allTuitions)) {
@@ -648,6 +660,14 @@ export async function renderTuitionsPage() {
         if (unifiedTuitions.length === 0) {
             return `<div class="text-center p-8 text-gray-400">No tuitions found.</div>`;
         }
+
+        // Sort: Scheduled (by time) first, then Unscheduled (alphabetical)
+        unifiedTuitions.sort((a, b) => {
+            if (a.start_time && !b.start_time) return -1;
+            if (!a.start_time && b.start_time) return 1;
+            if (a.start_time && b.start_time) return new Date(a.start_time) - new Date(b.start_time);
+            return a.tuition.subject.localeCompare(b.tuition.subject);
+        });
 
         const userRole = appState.currentUser.role;
         const tuitionCardsHTML = unifiedTuitions.map(item => renderTuitionCard(item, userRole)).join('');
