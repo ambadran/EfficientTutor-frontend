@@ -6,7 +6,6 @@ import {
     renderLogsPage, 
     renderSettingsPage,
     renderTuitionsPage,
-    renderTeacherTimetablesPage,
     handleParentLogFilterTypeChange,   // Re-export
     handleParentLogFilterEntityChange  // Re-export
 } from './templates.js';
@@ -14,7 +13,7 @@ import {
 export { handleParentLogFilterTypeChange, handleParentLogFilterEntityChange }; // Explicitly export them
 import { renderTimetablePage } from './timetable.js';
 import { displayGlobalError } from './layout.js';
-import { renderTeacherTuitionLogsPage, renderTeacherPaymentLogsPage, renderTeacherStudentInfoPage } from './teacher.js';
+import { renderTeacherTuitionLogsPage, renderTeacherPaymentLogsPage, renderTeacherStudentInfoPage, renderTeacherTimetablesPage } from './teacher.js';
 import { renderNotesPage } from './notes.js';
 import { renderProfilePage } from './profile.js';
 
@@ -83,7 +82,7 @@ export async function renderPage() {
                 break;
             case 'teacher-timetables':
                 pageTitle.textContent = 'Timetables';
-                content = renderTeacherTimetablesPage();
+                content = await renderTeacherTimetablesPage();
                 break;
             case 'teacher-student-info':
                 pageTitle.textContent = 'Student Info';

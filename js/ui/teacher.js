@@ -1,4 +1,4 @@
-import { appState } from '../config.js';
+import { appState, config } from '../config.js';
 import { 
     fetchTuitionLogs, 
     fetchFinancialSummary, 
@@ -16,11 +16,15 @@ import {
     deleteMeetingLink,
     fetchStudents,
     fetchTuitions,
-    fetchTeacherSpecialties
+    fetchTeacherSpecialties,
+    fetchTimetable,
+    fetchTeacher,
+    fetchStudent
 } from '../api.js';
 import { showModal, closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay } from './modals.js';
 import { renderPage } from './navigation.js';
 import { renderStudentProfile } from './profile.js';
+import { renderTimetableComponent } from './timetable.js';
 
 // #region Global Cache for Filters
 let cachedParents = [];
@@ -878,5 +882,155 @@ export async function renderTeacherStudentInfoPage() {
         console.error("Error rendering teacher student info page:", error);
         return `<div class="text-center text-red-400 p-8">Error loading student information: ${error.message}</div>`;
     }
+}
+// #endregion
+
+// #region Teacher Timetables
+export async function renderTeacherTimetablesPage() {
+    try {
+        showLoadingOverlay('Loading Timetable...');
+        
+        // 1. Fetch Students for Selector
+        const students = await fetchStudents();
+        
+        // 2. Determine Target & Fetch Data
+        const targetId = appState.teacherTimetableTarget; // Set via event listener in main.js
+        
+        let dataSource = null;
+        let timetableSlots = [];
+        let allTuitions = [];
+
+        // Fetch definitions to resolve 'Tuition' names
+        // Ideally we should cache this or fetch only relevant ones, but fetching all for lookup is safe for now.
+        // We use fetchSchedulableTuitions because it returns the tuition objects the teacher has access to.
+        // Actually, fetchTuitions() is the one used in renderTuitionsPage and returns the right objects.
+        allTuitions = await fetchTuitions();
+
+        if (targetId) {
+            // Fetch Student Data
+            const [student, studentSlots] = await Promise.all([
+                fetchStudent(targetId),
+                fetchTimetable(targetId)
+            ]);
+            dataSource = student;
+            timetableSlots = studentSlots;
+            dataSource.availability = _mapIntervalsToUi(dataSource.availability_intervals);
+
+        } else {
+            // Fetch Teacher Data (My Schedule)
+            const [teacher, teacherSlots] = await Promise.all([
+                fetchTeacher(appState.currentUser.id),
+                fetchTimetable() 
+            ]);
+            dataSource = teacher;
+            timetableSlots = teacherSlots;
+            dataSource.availability = _mapIntervalsToUi(dataSource.availability_intervals);
+        }
+        
+        hideStatusOverlay();
+
+        // 3. Map Timetable Slots to UI Events
+        // We need to merge the slot data (time) with tuition data (subject)
+        const tuitionMap = new Map();
+        if (Array.isArray(allTuitions)) {
+            allTuitions.forEach(t => tuitionMap.set(t.id, t));
+        }
+
+        const uiEvents = [];
+        if (Array.isArray(timetableSlots)) {
+            timetableSlots.forEach(slot => {
+                if (slot.slot_type === 'Tuition') {
+                    
+                    // 1. Resolve Subject Name
+                    let subjectName = slot.name; // Use the name from the slot directly if available (e.g. "Tuition: Physics (Yassin)")
+                    
+                    // Fallback to lookup if name is missing or empty
+                    if (!subjectName && slot.object_uuid) {
+                        const tuition = tuitionMap.get(slot.object_uuid);
+                        if (tuition) {
+                            subjectName = tuition.subject;
+                        }
+                    }
+                    
+                    // Final fallback
+                    if (!subjectName) subjectName = 'Tuition';
+
+                    // 2. Resolve Date & Time
+                    if (slot.next_occurrence_start && slot.next_occurrence_end) {
+                        const startDate = new Date(slot.next_occurrence_start);
+                        const endDate = new Date(slot.next_occurrence_end);
+                        
+                        // Get Day Name (lowercase)
+                        const dayName = startDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+                        
+                        // Get HH:MM
+                        const startStr = startDate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+                        const endStr = endDate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+                        uiEvents.push({
+                            id: slot.object_uuid,
+                            type: 'tuition',
+                            day: dayName,
+                            start: startStr,
+                            end: endStr,
+                            subject: subjectName
+                        });
+                    }
+                }
+            });
+        }
+
+        // 4. Render Selector
+        const options = students.map(s => `<option value="${s.id}" ${targetId === s.id ? 'selected' : ''}>${s.first_name} ${s.last_name}</option>`).join('');
+        const selectorHTML = `
+            <div class="bg-gray-800 p-4 rounded-lg mb-6">
+                <label class="block text-sm font-medium text-gray-400 mb-2">Viewing Schedule For:</label>
+                <select id="teacher-timetable-selector" class="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <option value="">My Schedule</option>
+                    ${options}
+                </select>
+            </div>
+        `;
+
+        // 5. Render Timetable
+        // renderTimetableComponent expects `tuitions` array with { day, start, end, subject }
+        const timetableHTML = renderTimetableComponent(false, dataSource, uiEvents);
+
+        return `
+            <div class="space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold">Timetables</h2>
+                </div>
+                ${selectorHTML}
+                ${timetableHTML}
+            </div>
+        `;
+
+    } catch (error) {
+        console.error("Error rendering teacher timetables:", error);
+        return `<div class="text-center text-red-400 p-8">Error loading timetable: ${error.message}</div>`;
+    }
+}
+
+function _mapIntervalsToUi(apiIntervals) {
+    const availability = {};
+    config.daysOfWeek.forEach(day => {
+        availability[day.toLowerCase()] = [];
+    });
+
+    if (!apiIntervals) return availability;
+
+    apiIntervals.forEach(interval => {
+        const dayName = config.daysOfWeek[interval.day_of_week - 1]?.toLowerCase();
+        if (dayName) {
+            availability[dayName].push({
+                id: interval.id,
+                type: interval.availability_type,
+                start: interval.start_time.slice(0, 5),
+                end: interval.end_time.slice(0, 5)
+            });
+        }
+    });
+    return availability;
 }
 // #endregion

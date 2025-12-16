@@ -31,6 +31,7 @@ export function renderSidebar(role) {
         navLinks = `
             <a href="#" id="nav-teacher-tuition-logs" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-file-invoice-dollar w-6 mr-3"></i> Tuition Logs</a>
             <a href="#" id="nav-teacher-payment-logs" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-money-check-alt w-6 mr-3"></i> Payment Logs</a>
+            <a href="#" id="nav-teacher-timetables" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-calendar-alt w-6 mr-3"></i> Timetable</a>
             <a href="#" id="nav-teacher-notes" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-book-open w-6 mr-3"></i> Notes</a>
             <a href="#" id="nav-tuitions" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-chalkboard-teacher w-6 mr-3"></i> Tuitions</a>
             <a href="#" id="nav-teacher-student-info" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-users w-6 mr-3"></i> Student Info</a>
@@ -706,8 +707,4 @@ export async function renderTeacherNotesPage() {
     } catch (error) {
         return `<div class="text-center text-red-400 p-8">Error loading notes: ${error.message}</div>`;
     }
-}
-
-export function renderTeacherTimetablesPage() {
-    return `<div class="p-8 text-center text-gray-400">The Timetables feature for teachers is not yet implemented.</div>`;
 }

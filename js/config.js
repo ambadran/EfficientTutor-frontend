@@ -36,6 +36,7 @@ export let appState = {
     currentTimetableDay: new Date().getDay() + 1 > 6 ? 0 : new Date().getDay() + 1,
     isSidebarOpen: false,
     teacherTuitionLogs: [], // NEW: Cache for the teacher's tuition log view
+    teacherTimetableTarget: null, // NEW: Filter for Teacher Timetable View (null = My Schedule)
     // NEW: State for the Notes feature
     notes: [],
     allStudents: [], // Cache for student lists for teachers/parents

@@ -2,11 +2,76 @@ import { config, appState } from '../config.js';
 import { fetchTimetable } from '../api.js';
 import { showDialog, closeDialog } from './modals.js';
 
+// --- Helpers ---
+
+function mapApiIntervalsToUi(apiIntervals) {
+    const availability = {};
+    config.daysOfWeek.forEach(day => {
+        availability[day.toLowerCase()] = [];
+    });
+
+    if (!apiIntervals) return availability;
+
+    apiIntervals.forEach(interval => {
+        const dayName = config.daysOfWeek[interval.day_of_week - 1]?.toLowerCase();
+        if (dayName) {
+            availability[dayName].push({
+                id: interval.id,
+                type: interval.availability_type,
+                start: interval.start_time.slice(0, 5),
+                end: interval.end_time.slice(0, 5)
+            });
+        }
+    });
+    return availability;
+}
+
+function mapTuitionSlotsToUi(slots) {
+    if (!Array.isArray(slots)) return [];
+    
+    const uiEvents = [];
+    slots.forEach(slot => {
+        if (slot.slot_type === 'Tuition' && slot.next_occurrence_start && slot.next_occurrence_end) {
+            const startDate = new Date(slot.next_occurrence_start);
+            const endDate = new Date(slot.next_occurrence_end);
+            
+            // Get Day Name (lowercase)
+            const dayName = startDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+            
+            // Get HH:MM
+            const startStr = startDate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+            const endStr = endDate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+            // Resolve Subject Name directly from slot
+            // fallback to 'Tuition' if name is missing
+            const subject = slot.name || 'Tuition';
+
+            uiEvents.push({
+                id: slot.object_uuid,
+                subject: subject,
+                day: dayName,
+                start: startStr,
+                end: endStr,
+                type: 'tuition',
+                userId: slot.user_id // Preserving new attribute if needed
+            });
+        }
+    });
+    return uiEvents;
+}
+
+// --- Components ---
+
 function renderStudentSelector() {
     // This selector is only for parents
     if (appState.currentUser?.role !== 'parent' || appState.students.length <= 1) return '';
     
-    const options = appState.students.map(s => `<option value="${s.id}" ${appState.currentStudent && appState.currentStudent.id === s.id ? 'selected' : ''}>${s.firstName} ${s.lastName}</option>`).join('');
+    const options = appState.students.map(s => 
+        `<option value="${s.id}" ${appState.currentStudent && appState.currentStudent.id === s.id ? 'selected' : ''}>
+            ${s.first_name} ${s.last_name}
+        </option>`
+    ).join('');
+    
     return `<div class="mb-4"><label for="student-selector" class="text-sm text-gray-400">Viewing Timetable for:</label><select id="student-selector" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600">${options}</select></div>`;
 }
 
@@ -57,6 +122,8 @@ function showAddEventModal(dataSource, dayKey, pixelY, onUpdate, onSave) {
 
 function showEditEventModal(dataSource, dayKey, startTime, onUpdate, onSave, onDelete) {
     const eventList = dataSource.availability[dayKey];
+    if (!eventList) return;
+    
     const eventIndex = eventList.findIndex(e => e.start === startTime);
     if (eventIndex === -1) return;
     const event = eventList[eventIndex];
@@ -137,6 +204,8 @@ function showSetAllTimesModal(dataSource, type, onUpdate, onSave) {
                         
                         daysToUpdate.forEach(day => {
                             const dayKey = day.toLowerCase();
+                            if (!dataSource.availability[dayKey]) dataSource.availability[dayKey] = [];
+                            
                             const eventIndex = dataSource.availability[dayKey].findIndex(event => event.type === type);
                             if (eventIndex > -1) {
                                 dataSource.availability[dayKey][eventIndex].start = newStart;
@@ -163,7 +232,12 @@ function showSetAllTimesModal(dataSource, type, onUpdate, onSave) {
 
 export function renderTimetableComponent(isWizard, dataSource, tuitions = []) {
     const dayKey = config.daysOfWeek[appState.currentTimetableDay].toLowerCase();
-    const availability = dataSource.availability ? (dataSource.availability[dayKey] || []) : [];
+    
+    // Ensure availability exists
+    const availability = (dataSource && dataSource.availability && dataSource.availability[dayKey]) 
+        ? dataSource.availability[dayKey] 
+        : [];
+        
     const tuitionsForDay = isWizard ? [] : tuitions.filter(t => t.day === dayKey);
 
     let timeLabelsHTML = '';
@@ -235,36 +309,59 @@ export function renderTimetableComponent(isWizard, dataSource, tuitions = []) {
         </div>`;
 }
 
-// THIS FUNCTION IS UPDATED to accept a studentId
+// --- Main Page Render ---
+
 export async function renderTimetablePage() {
-    // ADDED: A guard for the teacher role, as this page is not intended for them.
+    // Teacher guard
     if (appState.currentUser?.role === 'teacher') {
         return `<div class="text-center p-8 text-gray-400">Timetable view is not applicable for teachers. Please use the "Tuition Logs" and "Payment Logs" pages.</div>`;
     }
 
-    // For students, their ID is the currentUser ID. For parents, it's the currentStudent ID.
-    const studentIdForCheck = appState.currentUser.role === 'student'
-        ? appState.currentUser.id
-        : appState.currentStudent?.id;
+    // Resolve target student ID based on role
+    let targetStudentId = null;
+    let dataSource = null;
 
-    if (!studentIdForCheck) {
-        if (appState.currentUser?.role === 'parent') {
-            return `<div class="text-center p-8 text-gray-400">No student selected. Please add or select a student from the 'Student Info' page.</div>`;
+    if (appState.currentUser.role === 'student') {
+        targetStudentId = appState.currentUser.id;
+        dataSource = appState.currentUser;
+    } else if (appState.currentUser.role === 'parent') {
+        if (appState.currentStudent) {
+            targetStudentId = appState.currentStudent.id;
+            dataSource = appState.currentStudent;
+        } else {
+            // Parent has not selected a student yet
+            return `
+                <div class="timetable-component">
+                    ${renderStudentSelector()}
+                    <div class="text-center p-8 text-gray-400 bg-gray-800 rounded-lg">
+                        <i class="fas fa-user-graduate text-4xl mb-4"></i>
+                        <p>Please select a student from the dropdown above to view their timetable.</p>
+                    </div>
+                </div>`;
         }
+    }
+
+    if (!targetStudentId || !dataSource) {
         return `<div class="text-center p-8 text-gray-400">Loading timetable...</div>`;
     }
     
     try {
-        const allTuitions = await fetchTimetable();
-        // The data source for the timetable component depends on the user's role
-        const dataSource = appState.currentUser.role === 'parent' ? appState.currentStudent : appState.currentUser;
+        // Fetch timetable ONLY for the specific student
+        // This avoids fetching all tuitions or generic parent data
+        const timetableSlots = await fetchTimetable(targetStudentId);
         
-        // For parents, the backend returns all children's tuitions, so we filter for the selected student.
-        const tuitions = appState.currentUser.role === 'parent'
-            ? allTuitions.filter(t => t.student_id === appState.currentStudent.id)
-            : allTuitions;
+        // Map slots to UI events (using 'name' from slot directly)
+        const uiTuitions = mapTuitionSlotsToUi(timetableSlots);
+        
+        // Map student availability
+        // Ensure availability exists in dataSource
+        if (!dataSource.availability && dataSource.availability_intervals) {
+             dataSource.availability = mapApiIntervalsToUi(dataSource.availability_intervals);
+        } else if (!dataSource.availability) {
+             dataSource.availability = mapApiIntervalsToUi([]);
+        }
 
-        return renderTimetableComponent(false, dataSource, tuitions);
+        return renderTimetableComponent(false, dataSource, uiTuitions);
     } catch (error) {
         console.error("Error fetching timetable:", error);
         return `<div class="text-center text-red-400 p-8">Error loading timetable: ${error.message}</div>`;

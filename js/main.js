@@ -791,6 +791,19 @@ document.getElementById('page-content').addEventListener('change', (e) => {
     // Parent Logs Filters
     if (e.target.id === 'parent-logs-filter-type') handleParentLogFilterTypeChange(e.target.value);
     if (e.target.id === 'parent-logs-filter-entity') handleParentLogFilterEntityChange(e.target.value);
+
+    // NEW: Timetable Student Selector (Renamed ID)
+    if (e.target.id === 'timetable-student-selector') {
+        appState.currentStudent = appState.students.find(s => s.id === e.target.value) || null;
+        renderPage(); 
+    }
+
+    // Teacher Timetable Selector
+    if (e.target.id === 'teacher-timetable-selector') {
+        appState.teacherTimetableTarget = e.target.value || null; // Store ID or null for 'My Schedule'
+        // Re-render specifically the teacher timetables page to refresh data
+        renderPage();
+    }
 });
 
 // --- INITIALIZATION ---
