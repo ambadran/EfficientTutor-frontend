@@ -3,6 +3,95 @@ import { fetchNotes, fetchFinancialSummary, fetchTuitionLogs, fetchTuitions, fet
 import { showModal, closeModal , showLoadingOverlay, hideStatusOverlay} from './modals.js';
 import { renderPage } from './navigation.js';
 
+// --- Helper: Render Parent Log - Mobile Card ---
+function renderMobileLogCard(log) {
+    const attendees = log.attendee_names || [];
+    const formatTime = (timeStr) => {
+        if (!timeStr) return '';
+        return new Date(timeStr).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+    };
+    const currency = appState.currentUser?.currency || 'kwd';
+
+    return `
+        <div class="bg-gray-800 p-4 rounded-lg shadow-sm flex flex-col gap-3 border border-gray-700">
+            <div>
+                <p class="font-semibold text-white text-lg">${log.subject}</p>
+                <p class="text-sm text-indigo-300">${attendees.join(', ')}</p>
+            </div>
+            
+            <div class="flex items-center text-sm text-gray-300">
+                <i class="fas fa-chalkboard-teacher mr-2 text-gray-500"></i>
+                <span>${log.teacher_name || 'N/A'}</span>
+            </div>
+
+            <div class="text-sm text-gray-400">
+                <p>${new Date(log.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+                <p class="text-xs text-gray-500">${formatTime(log.start_time)} - ${formatTime(log.end_time)}</p>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 border-t border-gray-700 pt-3 mt-1">
+                <div class="text-center">
+                    <span class="text-xs text-gray-500 block mb-1">Duration</span>
+                    <span class="text-gray-300 text-sm">${log.duration}</span>
+                </div>
+                <div class="text-center">
+                    <span class="text-xs text-gray-500 block mb-1">Cost</span>
+                    <span class="font-semibold text-indigo-200">${log.cost} ${currency}</span>
+                </div>
+                <div class="text-center">
+                    <span class="text-xs text-gray-500 block mb-1">Status</span>
+                    <span class="px-2 py-1 rounded-full text-xs font-bold uppercase ${log.paid_status === 'Paid' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">
+                        ${log.paid_status}
+                    </span>
+                </div>
+            </div>
+        </div>`;
+}
+
+// --- Helper: Render Parent Log - Desktop Table Row ---
+function renderDesktopLogRow(log) {
+    const attendees = log.attendee_names || [];
+    const formatTime = (timeStr) => {
+        if (!timeStr) return '';
+        return new Date(timeStr).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+    };
+    const currency = appState.currentUser?.currency || 'kwd';
+
+    return `
+        <tr class="hover:bg-gray-750 transition-colors">
+            <td class="p-4">
+                <p class="font-semibold text-white">${log.subject}</p>
+                <p class="text-xs text-indigo-300">${attendees.join(', ')}</p>
+            </td>
+            <td class="p-4 text-sm text-gray-300">
+                ${log.teacher_name || 'N/A'}
+            </td>
+            <td class="p-4 text-sm text-gray-400">
+                <p>${new Date(log.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+                <p class="text-xs text-gray-500">${formatTime(log.start_time)} - ${formatTime(log.end_time)}</p>
+            </td>
+            <td class="p-4 text-sm text-gray-300 text-center">
+                ${log.duration}
+            </td>
+            <td class="p-4 text-sm font-semibold text-indigo-200 text-right">
+                ${log.cost} ${currency}
+            </td>
+            <td class="p-4 text-right">
+                <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${log.paid_status === 'Paid' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">
+                    ${log.paid_status}
+                </span>
+            </td>
+        </tr>`;
+}
+
 // --- UPDATED: Sidebar Rendering ---
 export function renderSidebar(role) {
     const navContainer = document.getElementById('sidebar-nav');
@@ -274,29 +363,7 @@ export async function renderLogsPage() {
                 hour12: true
             });
         };
-
-        // --- Render Logs Table ---
-        const logsHTML = detailed_logs.map(log => {
-            const attendees = log.attendee_names || [];
-            return `
-                <div class="bg-gray-800 p-4 rounded-lg grid grid-cols-2 md:grid-cols-5 gap-4 items-center">
-                    <div>
-                        <p class="font-semibold">${log.subject}</p>
-                        <p class="text-sm text-indigo-300">${attendees.join(', ')}</p>
-                    </div>
-                    <div class="text-sm text-gray-400 text-center">
-                        <p>${new Date(log.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                        <p class="text-xs">${formatTime(log.start_time)} - ${formatTime(log.end_time)}</p>
-                    </div>
-                    <div class="text-center">${log.duration}</div>
-                    <div class="text-center font-semibold">${log.cost} kwd</div>
-                    <div class="text-center">
-                        <span class="px-3 py-1 rounded-full text-sm font-semibold ${log.paid_status === 'Paid' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">
-                            ${log.paid_status}
-                        </span>
-                    </div>
-                </div>`;
-        }).join('');
+        const currency = appState.currentUser?.currency || 'kwd';
 
         // --- Render Filter Dropdowns ---
         const studentOptions = cachedParentStudents.map(s => `<option value="${s.id}" ${currentParentLogFilter.type === 'student' && currentParentLogFilter.entityId === s.id ? 'selected' : ''}>${s.first_name} ${s.last_name}</option>`).join('');
@@ -326,6 +393,31 @@ export async function renderLogsPage() {
             </div>
         `;
 
+        // --- Render Logs: Unified Table View ---
+        // We removed the split mobile/desktop view to ensure consistent visibility.
+        // On mobile, the table will be horizontally scrollable.
+        const rowsHTML = detailed_logs.map(log => renderDesktopLogRow(log)).join('');
+
+        const tableHTML = `
+            <div class="overflow-x-auto bg-gray-800 rounded-lg border border-gray-700">
+                <table class="w-full text-left min-w-[800px]">
+                    <thead class="bg-gray-900/50 text-gray-400 uppercase text-xs">
+                        <tr>
+                            <th class="p-4">Subject</th>
+                            <th class="p-4">Teacher</th>
+                            <th class="p-4">Date</th>
+                            <th class="p-4 text-center">Duration</th>
+                            <th class="p-4 text-right">Cost</th>
+                            <th class="p-4 text-right">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        ${rowsHTML || '<tr><td colspan="6" class="p-4 text-center text-gray-500">No logs found.</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
         return `
             <div class="space-y-6">
                 <div class="flex justify-between items-center">
@@ -338,12 +430,13 @@ export async function renderLogsPage() {
                     <h3 class="text-xl font-semibold mb-4">Summary</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-red-500">${summary.unpaid_count}</p><p class="text-gray-400">Lessons Unpaid</p></div>
-                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.credit_balance} kwd</p><p class="text-gray-400">Credit Balance</p></div>
-                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_due} kwd</p><p class="text-gray-400">Total Amount Due</p></div>
+                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.credit_balance} ${currency}</p><p class="text-gray-400">Credit Balance</p></div>
+                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_due} ${currency}</p><p class="text-gray-400">Total Amount Due</p></div>
                     </div>
 
                     <h3 class="text-xl font-semibold mb-4">Detailed Logs</h3>
-                    <div class="space-y-2">${logsHTML}</div>
+                    
+                    ${tableHTML}
                 </div>
             </div>`;
     } catch (error) {
@@ -408,43 +501,38 @@ async function updateParentLogsContent(filters) {
             fetchTuitionLogs(filters)
         ]);
 
-        const formatTime = (timeStr) => {
-            if (!timeStr) return '';
-            return new Date(timeStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-        };
+        const rowsHTML = detailed_logs.map(log => renderDesktopLogRow(log)).join('');
 
-        const logsHTML = detailed_logs.map(log => {
-            const attendees = log.attendee_names || [];
-            return `
-                <div class="bg-gray-800 p-4 rounded-lg grid grid-cols-2 md:grid-cols-5 gap-4 items-center">
-                    <div>
-                        <p class="font-semibold">${log.subject}</p>
-                        <p class="text-sm text-indigo-300">${attendees.join(', ')}</p>
-                    </div>
-                    <div class="text-sm text-gray-400 text-center">
-                        <p>${new Date(log.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                        <p class="text-xs">${formatTime(log.start_time)} - ${formatTime(log.end_time)}</p>
-                    </div>
-                    <div class="text-center">${log.duration}</div>
-                    <div class="text-center font-semibold">${log.cost} kwd</div>
-                    <div class="text-center">
-                        <span class="px-3 py-1 rounded-full text-sm font-semibold ${log.paid_status === 'Paid' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">
-                            ${log.paid_status}
-                        </span>
-                    </div>
-                </div>`;
-        }).join('');
+        const tableHTML = `
+            <div class="overflow-x-auto bg-gray-800 rounded-lg border border-gray-700">
+                <table class="w-full text-left min-w-[800px]">
+                    <thead class="bg-gray-900/50 text-gray-400 uppercase text-xs">
+                        <tr>
+                            <th class="p-4">Subject</th>
+                            <th class="p-4">Teacher</th>
+                            <th class="p-4">Date</th>
+                            <th class="p-4 text-center">Duration</th>
+                            <th class="p-4 text-right">Cost</th>
+                            <th class="p-4 text-right">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        ${rowsHTML || '<tr><td colspan="6" class="p-4 text-center text-gray-500">No logs found.</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        `;
 
         container.innerHTML = `
             <h3 class="text-xl font-semibold mb-4">Summary</h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-red-500">${summary.unpaid_count}</p><p class="text-gray-400">Lessons Unpaid</p></div>
-                <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.credit_balance} kwd</p><p class="text-gray-400">Credit Balance</p></div>
-                <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_due} kwd</p><p class="text-gray-400">Total Amount Due</p></div>
+                <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.credit_balance} ${appState.currentUser?.currency || 'kwd'}</p><p class="text-gray-400">Credit Balance</p></div>
+                <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_due} ${appState.currentUser?.currency || 'kwd'}</p><p class="text-gray-400">Total Amount Due</p></div>
             </div>
 
             <h3 class="text-xl font-semibold mb-4">Detailed Logs</h3>
-            <div class="space-y-2">${logsHTML}</div>
+            ${tableHTML}
         `;
 
     } catch (error) {
@@ -503,6 +591,7 @@ export async function renderNotesPage() {
 function renderTuitionCard(item, role) {
     const { tuition, start_time, end_time } = item;
     if (!tuition) return ''; // Safety check
+    const currency = appState.currentUser?.currency || 'kwd';
 
     // --- Schedule ---
     let scheduleHTML = '';
@@ -535,7 +624,7 @@ function renderTuitionCard(item, role) {
         const chargesHTML = (tuition.charges || []).map(charge => `
             <li class="flex justify-between items-center text-sm">
                 <span>${charge.student.first_name} ${charge.student.last_name}</span>
-                <span class="font-semibold">${charge.cost} kwd</span>
+                <span class="font-semibold">${charge.cost} ${currency}</span>
             </li>
         `).join('');
         financialsHTML = `
@@ -560,7 +649,7 @@ function renderTuitionCard(item, role) {
         financialsHTML = `
             <div>
                 <h4 class="text-sm font-semibold text-gray-400 mb-2">Your Charge</h4>
-                <p class="text-2xl font-bold text-indigo-300">${tuition.charge} kwd</p>
+                <p class="text-2xl font-bold text-indigo-300">${tuition.charge} ${currency}</p>
             </div>
         `;
         if (hasLink) {
