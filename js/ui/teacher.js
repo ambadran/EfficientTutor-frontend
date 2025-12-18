@@ -89,11 +89,11 @@ function renderTuitionLogsTable(logs) {
 
 function renderFinancialSummaryCards(summary) {
     return `
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-blue-400">${summary.total_lessons_given_this_month}</p><p class="text-gray-400">Lessons This Month</p></div>
-            <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.total_credit_held} kwd</p><p class="text-gray-400">Total Credit Held</p></div>
-            <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_owed_to_teacher} kwd</p><p class="text-gray-400">Total Owed to You</p></div>
-            <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-red-400">${summary.unpaid_lessons_count || 0}</p><p class="text-gray-400">Unpaid Lessons</p></div>
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-blue-400">${summary.total_lessons_given_this_month}</p><p class="text-gray-400 text-sm">Lessons This Month</p></div>
+            <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.total_credit_held} kwd</p><p class="text-gray-400 text-sm">Total Credit Held</p></div>
+            <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_owed_to_teacher} kwd</p><p class="text-gray-400 text-sm">Total Owed to You</p></div>
+            <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-red-400">${summary.unpaid_lessons_count || 0}</p><p class="text-gray-400 text-sm">Unpaid Lessons</p></div>
         </div>
     `;
 }
