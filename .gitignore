@@ -25,3 +25,30 @@ __pychache__
 tmp
 tmp*
 node_modules/
+
+# --- Web ---
+dist/
+.env
+
+# --- Capacitor ---
+capacitor.config.json.timestamp
+
+# --- Android ---
+# Native project build outputs
+android/build/
+android/app/build/
+android/.gradle/
+# Local configuration file (do not check in)
+android/local.properties
+# Synced web assets (copy of dist)
+android/app/src/main/assets/public/
+# Android Studio
+android/.idea/
+
+# --- iOS ---
+# Synced web assets (copy of dist)
+ios/App/App/public/
+# CocoaPods dependencies (can be re-installed via npx cap sync)
+ios/App/Pods/
+# Xcode build outputs
+ios/DerivedData/

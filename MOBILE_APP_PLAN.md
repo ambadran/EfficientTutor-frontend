@@ -242,7 +242,7 @@ To automate everything, we add a specific command to `package.json`.
 
 ---
 
-## Phase 7: Deployment Checklist
+## Phase 7: Final Polishing & Assets
 
 1.  **Icons & Splash Screen:**
     Use `@capacitor/assets` to automatically generate all icon sizes from a single source image.
@@ -252,5 +252,26 @@ To automate everything, we add a specific command to `package.json`.
     ```
 2.  **Permissions:**
     Check `AndroidManifest.xml` and `Info.plist` to ensure you are only requesting permissions you use (Internet is default, but Camera/Push need explicit entries).
-3.  **Versioning:**
+3.  **Asset Path Fixes (Important):**
+    In templates (e.g., `js/ui/templates.js`), Vite cannot automatically detect image paths inside string literals. 
+    *Action:* Import images at the top of the file: `import logo from '../../assets/logo.png';` and use the variable in the HTML string.
+4.  **Versioning:**
     Sync your `package.json` version with the native app versions using `npx cap sync` configuration or manual updates in Xcode/Android Studio before release.
+
+---
+
+## Phase 8: Native IDE Configuration (Post-Sync)
+
+These steps are done directly in Xcode or Android Studio and are persistent as long as the `ios/` and `android/` folders are committed.
+
+### 8.1 iOS (Xcode)
+1.  **Signing:** Select the 'App' target -> Signing & Capabilities -> Select your Team.
+2.  **Capabilities:** 
+    *   Click `+ Capability`.
+    *   Add **Push Notifications**.
+    *   Add **Background Modes** -> Check **Remote notifications**.
+3.  **Info.plist:** Add user-friendly descriptions for any requested permissions (e.g., `NSCameraUsageDescription`).
+
+### 8.2 Android (Android Studio)
+1.  **Permissions:** Ensure `POST_NOTIFICATIONS` is in `AndroidManifest.xml` for Android 13+.
+2.  **Variables:** Check `variables.gradle` for matching support library versions if plugins conflict.

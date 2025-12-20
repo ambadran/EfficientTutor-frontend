@@ -1,9 +1,15 @@
 ## Gemini Added Memories
-- EfficientTutor Architecture: Vanilla JS SPA, ES6 Modules, TailwindCSS.
-State: `appState` in `js/config.js`.
-API: Centralized in `js/api.js` (JWT auth).
-Events: Global delegation in `js/main.js`.
-Rendering: String templates in `js/ui/*.js`.
-Router: `js/ui/navigation.js`.
-Auth: `js/auth.js`.
-Rules: Ask clarifying questions, never break features, announce changes, use console errors, respect file structure, check api_doc/efficient_tutor_backend.json.
+- EfficientTutor Frontend Architecture:
+- Vanilla JS SPA with ES6 Modules.
+- TailwindCSS for styling.
+- Global State: `appState` in `js/config.js`.
+- Routing: `js/ui/navigation.js` renders HTML strings.
+- API: Centralized in `js/api.js` (JWT Auth).
+- Roles: Parent, Teacher, Student.
+- Mobile: Capacitor (Android/iOS).
+- Key Files:
+- `js/main.js`: Global event delegation & initialization.
+- `js/auth.js`: Login/Signup & Auth checks.
+- `js/ui/templates.js`: Sidebar & Shared UI.
+- `js/ui/timetable.js`: Timetable logic & rendering.
+- `js/ui/profile.js`: Profile management for all roles.
