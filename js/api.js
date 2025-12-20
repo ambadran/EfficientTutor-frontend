@@ -89,7 +89,7 @@ export async function loginUser(email, password) {
     return data;
 }
 
-export const signupUser = (email, password, firstName, lastName, role, specialties = []) => {
+export const signupUser = (email, password, firstName, lastName, role, specialties = [], availabilityIntervals = []) => {
     const endpoint = role === 'parent' ? '/auth/signup/parent' : '/auth/signup/teacher';
     
     const payload = { 
@@ -101,6 +101,7 @@ export const signupUser = (email, password, firstName, lastName, role, specialti
 
     if (role === 'teacher') {
         payload.teacher_specialties = specialties;
+        payload.availability_intervals = availabilityIntervals;
     }
 
     return apiRequest(endpoint, {
@@ -131,15 +132,28 @@ export const postStudent = (parentId, studentData) => {
 export const deleteStudentRequest = (studentId) => apiRequest(`/students/${studentId}`, {
     method: 'DELETE'
 });
-export const fetchTimetable = () => apiRequest(`/timetable/`);
+export const fetchTimetable = (targetUserId = null) => {
+    const query = targetUserId ? `?target_user_id=${targetUserId}` : '';
+    return apiRequest(`/timetable/${query}`);
+};
 
 // --- Student-Specific Views (Auth Needed) ---
 export const fetchMeetingLinks = () => apiRequest(`/timetable/`); // Meeting links are now part of the timetable
 
 // --- Unified Financial Logs & Summary (Auth Needed) ---
-export const fetchTuitionLogs = () => apiRequest(`/tuition-logs/`);
-export const fetchPaymentLogs = () => apiRequest(`/payment-logs/`);
-export const fetchFinancialSummary = () => apiRequest(`/financial-summary/`);
+const buildQuery = (filters) => {
+    if (!filters) return '';
+    const params = new URLSearchParams();
+    for (const key in filters) {
+        if (filters[key]) params.append(key, filters[key]);
+    }
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
+};
+
+export const fetchTuitionLogs = (filters) => apiRequest(`/tuition-logs/${buildQuery(filters)}`);
+export const fetchPaymentLogs = (filters) => apiRequest(`/payment-logs/${buildQuery(filters)}`);
+export const fetchFinancialSummary = (filters) => apiRequest(`/financial-summary/${buildQuery(filters)}`);
 export const fetchTuitions = () => apiRequest(`/tuitions/`);
 
 // --- Teacher Financial Actions (Auth Needed) ---
@@ -223,6 +237,27 @@ export const updateParent = (id, data) => apiRequest(`/parents/${id}`, {
 });
 export const updateStudent = (id, data) => apiRequest(`/students/${id}`, {
     method: 'PATCH', body: JSON.stringify(data)
+});
+
+// --- NEW: Availability Management (Immediate Updates) ---
+export const addStudentAvailability = (studentId, intervalData) => apiRequest(`/students/${studentId}/availability`, {
+    method: 'POST', body: JSON.stringify(intervalData)
+});
+export const updateStudentAvailability = (studentId, intervalId, intervalData) => apiRequest(`/students/${studentId}/availability/${intervalId}`, {
+    method: 'PATCH', body: JSON.stringify(intervalData)
+});
+export const deleteStudentAvailability = (studentId, intervalId) => apiRequest(`/students/${studentId}/availability/${intervalId}`, {
+    method: 'DELETE'
+});
+
+export const addTeacherAvailability = (teacherId, intervalData) => apiRequest(`/teachers/${teacherId}/availability`, {
+    method: 'POST', body: JSON.stringify(intervalData)
+});
+export const updateTeacherAvailability = (teacherId, intervalId, intervalData) => apiRequest(`/teachers/${teacherId}/availability/${intervalId}`, {
+    method: 'PATCH', body: JSON.stringify(intervalData)
+});
+export const deleteTeacherAvailability = (teacherId, intervalId) => apiRequest(`/teachers/${teacherId}/availability/${intervalId}`, {
+    method: 'DELETE'
 });
 
 // --- Metadata (TODO: Replace with actual endpoints) ---

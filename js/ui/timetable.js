@@ -2,34 +2,116 @@ import { config, appState } from '../config.js';
 import { fetchTimetable } from '../api.js';
 import { showDialog, closeDialog } from './modals.js';
 
+// --- Helpers ---
+
+function mapApiIntervalsToUi(apiIntervals) {
+    const availability = {};
+    config.daysOfWeek.forEach(day => {
+        availability[day.toLowerCase()] = [];
+    });
+
+    if (!apiIntervals) return availability;
+
+    apiIntervals.forEach(interval => {
+        const dayName = config.daysOfWeek[interval.day_of_week - 1]?.toLowerCase();
+        if (dayName) {
+            availability[dayName].push({
+                id: interval.id,
+                type: interval.availability_type,
+                start: interval.start_time.slice(0, 5),
+                end: interval.end_time.slice(0, 5)
+            });
+        }
+    });
+    return availability;
+}
+
+function mapTuitionSlotsToUi(slots) {
+    if (!Array.isArray(slots)) return [];
+    
+    const uiEvents = [];
+    slots.forEach(slot => {
+        if (slot.slot_type === 'Tuition' && slot.next_occurrence_start && slot.next_occurrence_end) {
+            const startDate = new Date(slot.next_occurrence_start);
+            const endDate = new Date(slot.next_occurrence_end);
+            
+            // Get Day Name (lowercase)
+            const dayName = startDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+            
+            // Get HH:MM
+            const startStr = startDate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+            const endStr = endDate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+            // Resolve Subject Name directly from slot
+            // fallback to 'Tuition' if name is missing
+            const subject = slot.name || 'Tuition';
+
+            uiEvents.push({
+                id: slot.object_uuid,
+                subject: subject,
+                day: dayName,
+                start: startStr,
+                end: endStr,
+                type: 'tuition',
+                userId: slot.user_id // Preserving new attribute if needed
+            });
+        }
+    });
+    return uiEvents;
+}
+
+// --- Components ---
+
 function renderStudentSelector() {
     // This selector is only for parents
     if (appState.currentUser?.role !== 'parent' || appState.students.length <= 1) return '';
     
-    const options = appState.students.map(s => `<option value="${s.id}" ${appState.currentStudent && appState.currentStudent.id === s.id ? 'selected' : ''}>${s.firstName} ${s.lastName}</option>`).join('');
+    const options = appState.students.map(s => 
+        `<option value="${s.id}" ${appState.currentStudent && appState.currentStudent.id === s.id ? 'selected' : ''}>
+            ${s.first_name} ${s.last_name}
+        </option>`
+    ).join('');
+    
     return `<div class="mb-4"><label for="student-selector" class="text-sm text-gray-400">Viewing Timetable for:</label><select id="student-selector" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600">${options}</select></div>`;
 }
 
-function showAddEventModal(dataSource, dayKey, pixelY, onUpdate) {
+function showAddEventModal(dataSource, dayKey, pixelY, onUpdate, onSave) {
     const totalMinutes = (pixelY / config.pixelsPerMinute) + (config.timeSlotsStartHour * 60);
     const hour = Math.floor(totalMinutes / 60) % 24;
     const minute = Math.floor((totalMinutes % 60) / 15) * 15;
     const startTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
     
-    const body = `<div class="space-y-4"><div><label class="text-sm text-gray-400">Activity Type</label><select id="add-event-type" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"><option value="sports">Sports Activity</option><option value="others">Others</option></select></div><div class="grid grid-cols-2 gap-4"><div><label class="text-sm text-gray-400">Start Time</label><input type="time" id="add-event-start" value="${startTime}" step="900" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"></div><div><label class="text-sm text-gray-400">End Time</label><input type="time" id="add-event-end" value="${startTime}" step="900" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"></div></div></div>`;
+    const body = `<div class="space-y-4"><div><label class="text-sm text-gray-400">Activity Type</label><select id="add-event-type" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"><option value="sports">Sports Activity</option><option value="work">Work</option><option value="personal">Personal</option><option value="others">Others</option></select></div><div class="grid grid-cols-2 gap-4"><div><label class="text-sm text-gray-400">Start Time</label><input type="time" id="add-event-start" value="${startTime}" step="900" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"></div><div><label class="text-sm text-gray-400">End Time</label><input type="time" id="add-event-end" value="${startTime}" step="900" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"></div></div></div>`;
     const footer = `<div class="flex justify-end space-x-4"><button id="modal-cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">Cancel</button><button id="modal-confirm-add-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Add</button></div>`;
 
     showDialog('Add Activity', body, footer, (dialog) => {
-        dialog.addEventListener('click', e => {
+        dialog.addEventListener('click', async e => {
             if (e.target.closest('#modal-cancel-btn')) closeDialog(dialog);
             if (e.target.closest('#modal-confirm-add-btn')) {
                 const type = dialog.querySelector('#add-event-type').value;
                 const start = dialog.querySelector('#add-event-start').value;
                 const end = dialog.querySelector('#add-event-end').value;
                 if (start && end) {
-                    dataSource.availability[dayKey].push({ type, start, end });
-                    onUpdate();
-                    closeDialog(dialog);
+                    const btn = e.target.closest('#modal-confirm-add-btn');
+                    const originalText = btn.textContent;
+                    btn.disabled = true;
+                    btn.textContent = 'Saving...';
+
+                    try {
+                        if (onSave) {
+                            await onSave({ type, start, end });
+                        } else {
+                            dataSource.availability[dayKey].push({ type, start, end });
+                        }
+                        onUpdate();
+                        closeDialog(dialog);
+                    } catch (error) {
+                        console.error(error);
+                        alert('Failed to add event: ' + error.message);
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = originalText;
+                    }
                 } else {
                     alert('Please set start and end times.');
                 }
@@ -38,8 +120,10 @@ function showAddEventModal(dataSource, dayKey, pixelY, onUpdate) {
     });
 }
 
-function showEditEventModal(dataSource, dayKey, startTime, onUpdate) {
+function showEditEventModal(dataSource, dayKey, startTime, onUpdate, onSave, onDelete) {
     const eventList = dataSource.availability[dayKey];
+    if (!eventList) return;
+    
     const eventIndex = eventList.findIndex(e => e.start === startTime);
     if (eventIndex === -1) return;
     const event = eventList[eventIndex];
@@ -48,51 +132,98 @@ function showEditEventModal(dataSource, dayKey, startTime, onUpdate) {
     const footer = `<div class="flex justify-end space-x-4"><button id="modal-cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">Cancel</button><button id="modal-confirm-edit-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Save Changes</button></div>`;
 
     showDialog(`Edit ${event.type} Activity`, body, footer, (dialog) => {
-        dialog.addEventListener('click', e => {
+        dialog.addEventListener('click', async e => {
             const target = e.target.closest('button');
             if (!target) return;
             if (target.id === 'modal-cancel-btn') closeDialog(dialog);
             else if (target.id === 'modal-confirm-edit-btn') {
                 const newStart = dialog.querySelector('#edit-event-start').value;
                 const newEnd = dialog.querySelector('#edit-event-end').value;
-                eventList[eventIndex] = { ...event, start: newStart, end: newEnd };
-                onUpdate();
-                closeDialog(dialog);
+                
+                target.disabled = true;
+                target.textContent = 'Saving...';
+                try {
+                    if (onSave) {
+                        await onSave({ ...event, start: newStart, end: newEnd });
+                    } else {
+                        eventList[eventIndex] = { ...event, start: newStart, end: newEnd };
+                    }
+                    onUpdate();
+                    closeDialog(dialog);
+                } catch (error) {
+                    alert('Failed to update: ' + error.message);
+                } finally {
+                    target.disabled = false;
+                    target.textContent = 'Save Changes';
+                }
             } else if (target.id === 'delete-event-btn') {
-                eventList.splice(eventIndex, 1);
-                onUpdate();
-                closeDialog(dialog);
+                target.disabled = true;
+                target.textContent = 'Deleting...';
+                try {
+                    if (onDelete) {
+                        await onDelete(event);
+                    } else {
+                        eventList.splice(eventIndex, 1);
+                    }
+                    onUpdate();
+                    closeDialog(dialog);
+                } catch (error) {
+                    alert('Failed to delete: ' + error.message);
+                } finally {
+                    target.disabled = false;
+                    target.textContent = 'Delete Event';
+                }
             }
         });
     });
 }
 
-function showSetAllTimesModal(dataSource, type, onUpdate) {
-    const defaultTimes = type === 'school' ? config.defaultSchoolTimes : config.defaultSleepTimes;
+function showSetAllTimesModal(dataSource, type, onUpdate, onSave) {
+    const defaultTimes = (type === 'school' || type === 'work') ? config.defaultSchoolTimes : config.defaultSleepTimes;
     const body = `<div class="grid grid-cols-2 gap-4"><div><label class="text-sm text-gray-400">Start Time</label><input type="time" id="set-all-start" value="${defaultTimes.start}" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"></div><div><label class="text-sm text-gray-400">End Time</label><input type="time" id="set-all-end" value="${defaultTimes.end}" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600"></div></div>`;
     const footer = `<div class="flex justify-end space-x-4"><button id="modal-cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">Cancel</button><button id="modal-confirm-set-all-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Apply to All Days</button></div>`;
 
     showDialog(`Set All ${type.charAt(0).toUpperCase() + type.slice(1)} Times`, body, footer, (dialog) => {
-        dialog.addEventListener('click', e => {
+        dialog.addEventListener('click', async e => {
             if (e.target.closest('#modal-cancel-btn')) closeDialog(dialog);
             if (e.target.closest('#modal-confirm-set-all-btn')) {
                 const newStart = dialog.querySelector('#set-all-start').value;
                 const newEnd = dialog.querySelector('#set-all-end').value;
-                const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
-                const daysToUpdate = type === 'school' ? weekdays : config.daysOfWeek;
+                const btn = e.target.closest('#modal-confirm-set-all-btn');
                 
-                daysToUpdate.forEach(day => {
-                    const dayKey = day.toLowerCase();
-                    const eventIndex = dataSource.availability[dayKey].findIndex(event => event.type === type);
-                    if (eventIndex > -1) {
-                        dataSource.availability[dayKey][eventIndex].start = newStart;
-                        dataSource.availability[dayKey][eventIndex].end = newEnd;
+                btn.disabled = true;
+                btn.textContent = 'Applying...';
+
+                try {
+                    if (onSave) {
+                        await onSave(type, newStart, newEnd);
                     } else {
-                        dataSource.availability[dayKey].push({ type, start: newStart, end: newEnd });
+                        // Local logic for Wizard
+                        const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
+                        const daysToUpdate = type === 'school' ? weekdays : config.daysOfWeek;
+                        
+                        daysToUpdate.forEach(day => {
+                            const dayKey = day.toLowerCase();
+                            if (!dataSource.availability[dayKey]) dataSource.availability[dayKey] = [];
+                            
+                            const eventIndex = dataSource.availability[dayKey].findIndex(event => event.type === type);
+                            if (eventIndex > -1) {
+                                dataSource.availability[dayKey][eventIndex].start = newStart;
+                                dataSource.availability[dayKey][eventIndex].end = newEnd;
+                            } else {
+                                dataSource.availability[dayKey].push({ type, start: newStart, end: newEnd });
+                            }
+                        });
                     }
-                });
-                onUpdate();
-                closeDialog(dialog);
+                    onUpdate();
+                    closeDialog(dialog);
+                } catch (error) {
+                    console.error(error);
+                    alert('Failed to apply changes: ' + error.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Apply to All Days';
+                }
             }
         });
     });
@@ -101,7 +232,12 @@ function showSetAllTimesModal(dataSource, type, onUpdate) {
 
 export function renderTimetableComponent(isWizard, dataSource, tuitions = []) {
     const dayKey = config.daysOfWeek[appState.currentTimetableDay].toLowerCase();
-    const availability = dataSource.availability ? (dataSource.availability[dayKey] || []) : [];
+    
+    // Ensure availability exists
+    const availability = (dataSource && dataSource.availability && dataSource.availability[dayKey]) 
+        ? dataSource.availability[dayKey] 
+        : [];
+        
     const tuitionsForDay = isWizard ? [] : tuitions.filter(t => t.day === dayKey);
 
     let timeLabelsHTML = '';
@@ -130,7 +266,7 @@ export function renderTimetableComponent(isWizard, dataSource, tuitions = []) {
         const text = isTuition ? event.subject : event.type;
         const cursorClass = type !== 'tuition' && isWizard ? 'cursor-pointer' : '';
 
-        return `<div class="event-bubble ${cursorClass} hover:opacity-80" style="background-color: ${color}; top: ${top}px; height: ${height}px;" data-type="${type}" data-start="${event.start}" data-end="${event.end}">
+        return `<div class="event-bubble ${cursorClass} hover:opacity-80" style="background-color: ${color}; top: ${top}px; height: ${height}px;" data-type="${type}" data-start="${event.start}" data-end="${event.end}" data-id="${event.id || ''}">
                     <p class="font-bold capitalize">${text}</p>
                     <p>${event.start} - ${event.end}</p>
                 </div>`;
@@ -151,8 +287,8 @@ export function renderTimetableComponent(isWizard, dataSource, tuitions = []) {
 
     const wizardButtons = isWizard ? `
         <div class="flex space-x-2 mb-4">
-            <button class="set-all-times-btn flex-1 text-sm bg-gray-600 hover:bg-gray-500 rounded-md py-2" data-type="school"><i class="fas fa-school mr-2"></i> Set All School Times</button>
-            <button class="set-all-times-btn flex-1 text-sm bg-gray-600 hover:bg-gray-500 rounded-md py-2" data-type="sleep"><i class="fas fa-bed mr-2"></i> Set All Sleep Times</button>
+            <button type="button" class="set-all-times-btn flex-1 text-sm bg-gray-600 hover:bg-gray-500 rounded-md py-2" data-type="school"><i class="fas fa-school mr-2"></i> Set All School Times</button>
+            <button type="button" class="set-all-times-btn flex-1 text-sm bg-gray-600 hover:bg-gray-500 rounded-md py-2" data-type="sleep"><i class="fas fa-bed mr-2"></i> Set All Sleep Times</button>
         </div>` : '';
 
     return `
@@ -173,36 +309,59 @@ export function renderTimetableComponent(isWizard, dataSource, tuitions = []) {
         </div>`;
 }
 
-// THIS FUNCTION IS UPDATED to accept a studentId
+// --- Main Page Render ---
+
 export async function renderTimetablePage() {
-    // ADDED: A guard for the teacher role, as this page is not intended for them.
+    // Teacher guard
     if (appState.currentUser?.role === 'teacher') {
         return `<div class="text-center p-8 text-gray-400">Timetable view is not applicable for teachers. Please use the "Tuition Logs" and "Payment Logs" pages.</div>`;
     }
 
-    // For students, their ID is the currentUser ID. For parents, it's the currentStudent ID.
-    const studentIdForCheck = appState.currentUser.role === 'student'
-        ? appState.currentUser.id
-        : appState.currentStudent?.id;
+    // Resolve target student ID based on role
+    let targetStudentId = null;
+    let dataSource = null;
 
-    if (!studentIdForCheck) {
-        if (appState.currentUser?.role === 'parent') {
-            return `<div class="text-center p-8 text-gray-400">No student selected. Please add or select a student from the 'Student Info' page.</div>`;
+    if (appState.currentUser.role === 'student') {
+        targetStudentId = appState.currentUser.id;
+        dataSource = appState.currentUser;
+    } else if (appState.currentUser.role === 'parent') {
+        if (appState.currentStudent) {
+            targetStudentId = appState.currentStudent.id;
+            dataSource = appState.currentStudent;
+        } else {
+            // Parent has not selected a student yet
+            return `
+                <div class="timetable-component">
+                    ${renderStudentSelector()}
+                    <div class="text-center p-8 text-gray-400 bg-gray-800 rounded-lg">
+                        <i class="fas fa-user-graduate text-4xl mb-4"></i>
+                        <p>Please select a student from the dropdown above to view their timetable.</p>
+                    </div>
+                </div>`;
         }
+    }
+
+    if (!targetStudentId || !dataSource) {
         return `<div class="text-center p-8 text-gray-400">Loading timetable...</div>`;
     }
     
     try {
-        const allTuitions = await fetchTimetable();
-        // The data source for the timetable component depends on the user's role
-        const dataSource = appState.currentUser.role === 'parent' ? appState.currentStudent : appState.currentUser;
+        // Fetch timetable ONLY for the specific student
+        // This avoids fetching all tuitions or generic parent data
+        const timetableSlots = await fetchTimetable(targetStudentId);
         
-        // For parents, the backend returns all children's tuitions, so we filter for the selected student.
-        const tuitions = appState.currentUser.role === 'parent'
-            ? allTuitions.filter(t => t.student_id === appState.currentStudent.id)
-            : allTuitions;
+        // Map slots to UI events (using 'name' from slot directly)
+        const uiTuitions = mapTuitionSlotsToUi(timetableSlots);
+        
+        // Map student availability
+        // Ensure availability exists in dataSource
+        if (!dataSource.availability && dataSource.availability_intervals) {
+             dataSource.availability = mapApiIntervalsToUi(dataSource.availability_intervals);
+        } else if (!dataSource.availability) {
+             dataSource.availability = mapApiIntervalsToUi([]);
+        }
 
-        return renderTimetableComponent(false, dataSource, tuitions);
+        return renderTimetableComponent(false, dataSource, uiTuitions);
     } catch (error) {
         console.error("Error fetching timetable:", error);
         return `<div class="text-center text-red-400 p-8">Error loading timetable: ${error.message}</div>`;

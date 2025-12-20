@@ -1,4 +1,4 @@
-import { appState } from '../config.js';
+import { appState, config } from '../config.js';
 import { 
     fetchTuitionLogs, 
     fetchFinancialSummary, 
@@ -16,11 +16,22 @@ import {
     deleteMeetingLink,
     fetchStudents,
     fetchTuitions,
-    fetchTeacherSpecialties
+    fetchTeacherSpecialties,
+    fetchTimetable,
+    fetchTeacher,
+    fetchStudent
 } from '../api.js';
 import { showModal, closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay } from './modals.js';
 import { renderPage } from './navigation.js';
 import { renderStudentProfile } from './profile.js';
+import { renderTimetableComponent } from './timetable.js';
+
+// #region Global Cache for Filters
+let cachedParents = [];
+let cachedStudents = [];
+let currentTuitionFilter = { type: 'all', entityId: null };
+let currentPaymentFilter = { type: 'all', entityId: null };
+// #endregion
 
 // #region Utilities
 function formatDate(gmtString) {
@@ -76,30 +87,156 @@ function renderTuitionLogsTable(logs) {
     return `<div class="overflow-x-auto"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-gray-900/80"><tr><th class="p-3 text-center">Week #</th><th class="p-3">Date</th><th class="p-3">Start Time</th><th class="p-3">End Time</th><th class="p-3 text-center">Duration</th><th class="p-3">Subject</th><th class="p-3">Attendees</th><th class="p-3">Total Cost</th><th class="p-3">Paid Status</th><th class="p-3">Log Status</th><th class="p-3">Type</th><th class="p-3">Actions</th></tr></thead><tbody>${logsHTML}</tbody></table></div>`;
 }
 
+function renderFinancialSummaryCards(summary) {
+    return `
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-blue-400">${summary.total_lessons_given_this_month}</p><p class="text-gray-400 text-sm">Lessons This Month</p></div>
+            <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.total_credit_held} kwd</p><p class="text-gray-400 text-sm">Total Credit Held</p></div>
+            <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_owed_to_teacher} kwd</p><p class="text-gray-400 text-sm">Total Owed to You</p></div>
+            <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-red-400">${summary.unpaid_lessons_count || 0}</p><p class="text-gray-400 text-sm">Unpaid Lessons</p></div>
+        </div>
+    `;
+}
+
 export async function renderTeacherTuitionLogsPage() {
     try {
-        const [summary, logs] = await Promise.all([fetchFinancialSummary(), fetchTuitionLogs()]);
+        // Use current filters or fetch fresh
+        const filters = currentTuitionFilter.type === 'all' ? {} : 
+            (currentTuitionFilter.type === 'parent' ? { parent_id: currentTuitionFilter.entityId } : { student_id: currentTuitionFilter.entityId });
+
+        const [summary, logs, parents, students] = await Promise.all([
+            fetchFinancialSummary(filters), 
+            fetchTuitionLogs(filters),
+            fetchParentList(),
+            fetchStudents()
+        ]);
+        
         appState.teacherTuitionLogs = logs;
+        cachedParents = parents;
+        cachedStudents = students;
+
         const tableHTML = renderTuitionLogsTable(logs);
+        const summaryHTML = renderFinancialSummaryCards(summary);
+
+        // Construct Filter Dropdowns State
+        const parentOptions = parents.map(p => `<option value="${p.id}" ${currentTuitionFilter.type === 'parent' && currentTuitionFilter.entityId === p.id ? 'selected' : ''}>${p.first_name} ${p.last_name}</option>`).join('');
+        const studentOptions = students.map(s => `<option value="${s.id}" ${currentTuitionFilter.type === 'student' && currentTuitionFilter.entityId === s.id ? 'selected' : ''}>${s.first_name} ${s.last_name}</option>`).join('');
+        
+        let entityOptionsHTML = '<option value="">-- Select --</option>';
+        if (currentTuitionFilter.type === 'parent') entityOptionsHTML += parentOptions;
+        else if (currentTuitionFilter.type === 'student') entityOptionsHTML += studentOptions;
+
         return `
             <div class="space-y-6">
                 <div class="flex justify-between items-center">
                     <h2 class="text-2xl font-bold">Tuition Logs</h2>
                     <button id="add-new-log-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition duration-300"><i class="fas fa-plus mr-2"></i> Add New Log</button>
                 </div>
-                <div>
-                    <h3 class="text-xl font-semibold mb-4">Summary</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-blue-400">${summary.total_lessons_given_this_month}</p><p class="text-gray-400">Lessons This Month</p></div>
-                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.total_credit_held} kwd</p><p class="text-gray-400">Total Credit Held</p></div>
-                        <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_owed_to_teacher} kwd</p><p class="text-gray-400">Total Owed to You</p></div>
+                
+                <!-- Smart Filter Bar -->
+                <div class="bg-gray-800 p-4 rounded-lg flex flex-col md:flex-row gap-4 items-end md:items-center border border-gray-700">
+                    <div class="w-full md:w-auto">
+                        <label class="text-xs text-gray-400 block mb-1 uppercase font-semibold">Filter By</label>
+                        <select id="tuition-filter-type" class="p-2 bg-gray-700 rounded border border-gray-600 w-full md:w-40 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="all" ${currentTuitionFilter.type === 'all' ? 'selected' : ''}>View All</option>
+                            <option value="parent" ${currentTuitionFilter.type === 'parent' ? 'selected' : ''}>Parent</option>
+                            <option value="student" ${currentTuitionFilter.type === 'student' ? 'selected' : ''}>Student</option>
+                        </select>
+                    </div>
+                    
+                    <div id="tuition-filter-entity-container" class="w-full md:w-auto flex-grow ${currentTuitionFilter.type === 'all' ? 'hidden' : ''}">
+                        <label class="text-xs text-gray-400 block mb-1 uppercase font-semibold">Select Entity</label>
+                        <select id="tuition-filter-entity" class="p-2 bg-gray-700 rounded border border-gray-600 w-full text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            ${entityOptionsHTML}
+                        </select>
                     </div>
                 </div>
-                ${tableHTML}
+
+                <div id="tuition-summary-container">
+                    <h3 class="text-xl font-semibold mb-4">Summary</h3>
+                    ${summaryHTML}
+                </div>
+
+                <div id="tuition-logs-table-container">
+                    ${tableHTML}
+                </div>
             </div>`;
     } catch (error) {
         console.error("Error rendering tuition logs page:", error);
         return `<div class="text-center text-red-400 p-8">Error loading tuition logs: ${error.message}</div>`;
+    }
+}
+
+// Handler: When Filter Type Changes (All / Parent / Student)
+export function handleTuitionFilterTypeChange(type) {
+    const entityContainer = document.getElementById('tuition-filter-entity-container');
+    const entitySelect = document.getElementById('tuition-filter-entity');
+    
+    // Update State
+    currentTuitionFilter.type = type;
+    currentTuitionFilter.entityId = null;
+
+    if (type === 'all') {
+        entityContainer.classList.add('hidden');
+        updateTuitionLogsContent({}); // Fetch all
+    } else {
+        entityContainer.classList.remove('hidden');
+        entitySelect.innerHTML = '<option value="">-- Select --</option>';
+        
+        if (type === 'parent') {
+            cachedParents.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = `${p.first_name} ${p.last_name}`;
+                entitySelect.appendChild(opt);
+            });
+        } else if (type === 'student') {
+            cachedStudents.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = `${s.first_name} ${s.last_name} (Grade ${s.grade})`;
+                entitySelect.appendChild(opt);
+            });
+        }
+    }
+}
+
+// Handler: When Filter Entity Changes (Specific Parent ID or Student ID)
+export function handleTuitionFilterEntityChange(entityId) {
+    if (!entityId) return;
+    
+    // Update State
+    currentTuitionFilter.entityId = entityId;
+
+    const filters = {};
+    if (currentTuitionFilter.type === 'parent') filters.parent_id = entityId;
+    else if (currentTuitionFilter.type === 'student') filters.student_id = entityId;
+    
+    updateTuitionLogsContent(filters);
+}
+
+// Helper: Fetch Data & Update DOM
+async function updateTuitionLogsContent(filters) {
+    const summaryContainer = document.getElementById('tuition-summary-container');
+    const tableContainer = document.getElementById('tuition-logs-table-container');
+    
+    summaryContainer.innerHTML = '<div class="flex justify-center p-4"><div class="loader"></div></div>';
+    tableContainer.innerHTML = '<div class="flex justify-center p-4"><div class="loader"></div></div>';
+
+    try {
+        const [summary, logs] = await Promise.all([
+            fetchFinancialSummary(filters),
+            fetchTuitionLogs(filters)
+        ]);
+        
+        appState.teacherTuitionLogs = logs;
+
+        summaryContainer.innerHTML = `<h3 class="text-xl font-semibold mb-4">Summary</h3>${renderFinancialSummaryCards(summary)}`;
+        tableContainer.innerHTML = renderTuitionLogsTable(logs);
+    } catch (error) {
+        summaryContainer.innerHTML = `<p class="text-red-400">Error loading summary.</p>`;
+        tableContainer.innerHTML = `<p class="text-red-400">Error loading logs.</p>`;
+        showStatusMessage('error', error.message);
     }
 }
 
@@ -113,7 +250,12 @@ export function handleVoidLog(logId) {
                 await voidTuitionLog(logId);
                 closeModal();
                 showStatusMessage('success', 'Log voided successfully.');
-                renderPage();
+                
+                // Refresh view respecting current filters
+                const filters = {};
+                if (currentTuitionFilter.type === 'parent' && currentTuitionFilter.entityId) filters.parent_id = currentTuitionFilter.entityId;
+                if (currentTuitionFilter.type === 'student' && currentTuitionFilter.entityId) filters.student_id = currentTuitionFilter.entityId;
+                updateTuitionLogsContent(filters);
             } catch (error) {
                 showStatusMessage('error', error.message);
             }
@@ -127,7 +269,17 @@ export function showChargesDetail(logId) {
         showStatusMessage('error', 'Charge details not available.');
         return;
     }
-    const chargesHTML = log.charges.map(charge => `<li class="flex justify-between items-center p-2 bg-gray-700 rounded-md"><span>${charge.student_name}</span><span class="font-semibold">${charge.cost} kwd</span></li>`).join('');
+    const chargesHTML = log.charges.map(charge => {
+        const statusColor = charge.paid_status === 'Paid' ? 'text-green-400' : 'text-red-400';
+        return `
+        <li class="flex justify-between items-center p-2 bg-gray-700 rounded-md">
+            <span>${charge.student_name}</span>
+            <div class="text-right">
+                <span class="block font-semibold">${charge.cost} kwd</span>
+                <span class="text-xs ${statusColor}">${charge.paid_status}</span>
+            </div>
+        </li>`;
+    }).join('');
     const body = `<ul class="space-y-2">${chargesHTML}</ul>`;
     const footer = `<div class="flex justify-end"><button id="modal-close-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Close</button></div>`;
     showModal('Cost Breakdown', body, footer);
@@ -207,7 +359,12 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
                     }
                     closeModal();
                     showStatusMessage('success', 'Log saved successfully.');
-                    renderPage();
+                    
+                    // Refresh View using state
+                    const filters = {};
+                    if (currentTuitionFilter.type === 'parent' && currentTuitionFilter.entityId) filters.parent_id = currentTuitionFilter.entityId;
+                    if (currentTuitionFilter.type === 'student' && currentTuitionFilter.entityId) filters.student_id = currentTuitionFilter.entityId;
+                    updateTuitionLogsContent(filters);
                 } catch (error) {
                     showStatusMessage('error', error.message);
                 }
@@ -412,20 +569,99 @@ function renderPaymentLogsTable(logs) {
 
 export async function renderTeacherPaymentLogsPage() {
     try {
-        const logs = await fetchPaymentLogs();
+        // Use current filters (Parent only)
+        const filters = currentPaymentFilter.type === 'parent' ? { parent_id: currentPaymentFilter.entityId } : {};
+
+        // Fetch logs AND parent list for the filter
+        const [logs, parents] = await Promise.all([
+            fetchPaymentLogs(filters),
+            fetchParentList()
+        ]);
+        
         appState.teacherPaymentLogs = logs;
+        cachedParents = parents; 
+
         const tableHTML = renderPaymentLogsTable(logs);
+        
+        const parentOptions = parents.map(p => `<option value="${p.id}" ${currentPaymentFilter.type === 'parent' && currentPaymentFilter.entityId === p.id ? 'selected' : ''}>${p.first_name} ${p.last_name}</option>`).join('');
+
         return `
             <div class="space-y-6">
                 <div class="flex justify-between items-center">
                     <h2 class="text-2xl font-bold">Payment Logs</h2>
                     <button id="add-new-payment-log-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition duration-300"><i class="fas fa-plus mr-2"></i> Add Payment</button>
                 </div>
-                ${tableHTML}
+
+                <!-- Payment Logs Smart Filter (Parent Only) -->
+                <div class="bg-gray-800 p-4 rounded-lg flex flex-col md:flex-row gap-4 items-end md:items-center border border-gray-700">
+                    <div class="w-full md:w-auto">
+                        <label class="text-xs text-gray-400 block mb-1 uppercase font-semibold">Filter By</label>
+                        <select id="payment-filter-type" class="p-2 bg-gray-700 rounded border border-gray-600 w-full md:w-40 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="all" ${currentPaymentFilter.type === 'all' ? 'selected' : ''}>View All</option>
+                            <option value="parent" ${currentPaymentFilter.type === 'parent' ? 'selected' : ''}>Parent</option>
+                        </select>
+                    </div>
+                    
+                    <div id="payment-filter-entity-container" class="w-full md:w-auto flex-grow ${currentPaymentFilter.type === 'all' ? 'hidden' : ''}">
+                        <label class="text-xs text-gray-400 block mb-1 uppercase font-semibold">Select Parent</label>
+                        <select id="payment-filter-entity" class="p-2 bg-gray-700 rounded border border-gray-600 w-full text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="">-- Select Parent --</option>
+                            ${parentOptions}
+                        </select>
+                    </div>
+                </div>
+
+                <div id="payment-logs-table-container">
+                    ${tableHTML}
+                </div>
             </div>`;
     } catch (error) {
         console.error("Error rendering payment logs page:", error);
         return `<div class="text-center text-red-400 p-8">Error loading payment logs: ${error.message}</div>`;
+    }
+}
+
+// Handler: Payment Filter Type Change
+export function handlePaymentFilterTypeChange(type) {
+    const entityContainer = document.getElementById('payment-filter-entity-container');
+    const entitySelect = document.getElementById('payment-filter-entity');
+
+    currentPaymentFilter.type = type;
+    currentPaymentFilter.entityId = null;
+
+    if (type === 'all') {
+        entityContainer.classList.add('hidden');
+        updatePaymentLogsContent({});
+    } else {
+        entityContainer.classList.remove('hidden');
+        entitySelect.innerHTML = '<option value="">-- Select Parent --</option>';
+        cachedParents.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = `${p.first_name} ${p.last_name}`;
+            entitySelect.appendChild(opt);
+        });
+    }
+}
+
+// Handler: Payment Filter Entity Change
+export function handlePaymentFilterEntityChange(entityId) {
+    if (!entityId) return;
+    currentPaymentFilter.entityId = entityId;
+    updatePaymentLogsContent({ parent_id: entityId });
+}
+
+async function updatePaymentLogsContent(filters) {
+    const container = document.getElementById('payment-logs-table-container');
+    container.innerHTML = '<div class="flex justify-center p-4"><div class="loader"></div></div>';
+    
+    try {
+        const logs = await fetchPaymentLogs(filters);
+        appState.teacherPaymentLogs = logs;
+        container.innerHTML = renderPaymentLogsTable(logs);
+    } catch (error) {
+        container.innerHTML = `<p class="text-red-400">Error loading payment logs.</p>`;
+        showStatusMessage('error', error.message);
     }
 }
 
@@ -463,7 +699,10 @@ export async function showAddPaymentLogModal(logToCorrect = null) {
                     }
                     closeModal();
                     showStatusMessage('success', 'Payment log saved.');
-                    renderPage();
+                    
+                    // Refresh View using state
+                    const filters = currentPaymentFilter.type === 'parent' && currentPaymentFilter.entityId ? { parent_id: currentPaymentFilter.entityId } : {};
+                    updatePaymentLogsContent(filters);
                 } catch (error) {
                     showStatusMessage('error', error.message);
                 }
@@ -485,7 +724,10 @@ export function handleVoidPaymentLog(logId) {
                 await voidPaymentLog(logId);
                 closeModal();
                 showStatusMessage('success', 'Payment log voided.');
-                renderPage();
+                
+                // Refresh view using state
+                const filters = currentPaymentFilter.type === 'parent' && currentPaymentFilter.entityId ? { parent_id: currentPaymentFilter.entityId } : {};
+                updatePaymentLogsContent(filters);
             } catch (error) {
                 showStatusMessage('error', error.message);
             }
@@ -641,5 +883,155 @@ export async function renderTeacherStudentInfoPage() {
         console.error("Error rendering teacher student info page:", error);
         return `<div class="text-center text-red-400 p-8">Error loading student information: ${error.message}</div>`;
     }
+}
+// #endregion
+
+// #region Teacher Timetables
+export async function renderTeacherTimetablesPage() {
+    try {
+        showLoadingOverlay('Loading Timetable...');
+        
+        // 1. Fetch Students for Selector
+        const students = await fetchStudents();
+        
+        // 2. Determine Target & Fetch Data
+        const targetId = appState.teacherTimetableTarget; // Set via event listener in main.js
+        
+        let dataSource = null;
+        let timetableSlots = [];
+        let allTuitions = [];
+
+        // Fetch definitions to resolve 'Tuition' names
+        // Ideally we should cache this or fetch only relevant ones, but fetching all for lookup is safe for now.
+        // We use fetchSchedulableTuitions because it returns the tuition objects the teacher has access to.
+        // Actually, fetchTuitions() is the one used in renderTuitionsPage and returns the right objects.
+        allTuitions = await fetchTuitions();
+
+        if (targetId) {
+            // Fetch Student Data
+            const [student, studentSlots] = await Promise.all([
+                fetchStudent(targetId),
+                fetchTimetable(targetId)
+            ]);
+            dataSource = student;
+            timetableSlots = studentSlots;
+            dataSource.availability = _mapIntervalsToUi(dataSource.availability_intervals);
+
+        } else {
+            // Fetch Teacher Data (My Schedule)
+            const [teacher, teacherSlots] = await Promise.all([
+                fetchTeacher(appState.currentUser.id),
+                fetchTimetable() 
+            ]);
+            dataSource = teacher;
+            timetableSlots = teacherSlots;
+            dataSource.availability = _mapIntervalsToUi(dataSource.availability_intervals);
+        }
+        
+        hideStatusOverlay();
+
+        // 3. Map Timetable Slots to UI Events
+        // We need to merge the slot data (time) with tuition data (subject)
+        const tuitionMap = new Map();
+        if (Array.isArray(allTuitions)) {
+            allTuitions.forEach(t => tuitionMap.set(t.id, t));
+        }
+
+        const uiEvents = [];
+        if (Array.isArray(timetableSlots)) {
+            timetableSlots.forEach(slot => {
+                if (slot.slot_type === 'Tuition') {
+                    
+                    // 1. Resolve Subject Name
+                    let subjectName = slot.name; // Use the name from the slot directly if available (e.g. "Tuition: Physics (Yassin)")
+                    
+                    // Fallback to lookup if name is missing or empty
+                    if (!subjectName && slot.object_uuid) {
+                        const tuition = tuitionMap.get(slot.object_uuid);
+                        if (tuition) {
+                            subjectName = tuition.subject;
+                        }
+                    }
+                    
+                    // Final fallback
+                    if (!subjectName) subjectName = 'Tuition';
+
+                    // 2. Resolve Date & Time
+                    if (slot.next_occurrence_start && slot.next_occurrence_end) {
+                        const startDate = new Date(slot.next_occurrence_start);
+                        const endDate = new Date(slot.next_occurrence_end);
+                        
+                        // Get Day Name (lowercase)
+                        const dayName = startDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+                        
+                        // Get HH:MM
+                        const startStr = startDate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+                        const endStr = endDate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+                        uiEvents.push({
+                            id: slot.object_uuid,
+                            type: 'tuition',
+                            day: dayName,
+                            start: startStr,
+                            end: endStr,
+                            subject: subjectName
+                        });
+                    }
+                }
+            });
+        }
+
+        // 4. Render Selector
+        const options = students.map(s => `<option value="${s.id}" ${targetId === s.id ? 'selected' : ''}>${s.first_name} ${s.last_name}</option>`).join('');
+        const selectorHTML = `
+            <div class="bg-gray-800 p-4 rounded-lg mb-6">
+                <label class="block text-sm font-medium text-gray-400 mb-2">Viewing Schedule For:</label>
+                <select id="teacher-timetable-selector" class="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <option value="">My Schedule</option>
+                    ${options}
+                </select>
+            </div>
+        `;
+
+        // 5. Render Timetable
+        // renderTimetableComponent expects `tuitions` array with { day, start, end, subject }
+        const timetableHTML = renderTimetableComponent(false, dataSource, uiEvents);
+
+        return `
+            <div class="space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold">Timetables</h2>
+                </div>
+                ${selectorHTML}
+                ${timetableHTML}
+            </div>
+        `;
+
+    } catch (error) {
+        console.error("Error rendering teacher timetables:", error);
+        return `<div class="text-center text-red-400 p-8">Error loading timetable: ${error.message}</div>`;
+    }
+}
+
+function _mapIntervalsToUi(apiIntervals) {
+    const availability = {};
+    config.daysOfWeek.forEach(day => {
+        availability[day.toLowerCase()] = [];
+    });
+
+    if (!apiIntervals) return availability;
+
+    apiIntervals.forEach(interval => {
+        const dayName = config.daysOfWeek[interval.day_of_week - 1]?.toLowerCase();
+        if (dayName) {
+            availability[dayName].push({
+                id: interval.id,
+                type: interval.availability_type,
+                start: interval.start_time.slice(0, 5),
+                end: interval.end_time.slice(0, 5)
+            });
+        }
+    });
+    return availability;
 }
 // #endregion

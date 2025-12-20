@@ -2,20 +2,68 @@
 import { appState, config } from './config.js';
 import { checkBackendStatus, postStudent, deleteStudentRequest, fetchStudent, deleteNote, deleteMeetingLink, updateTeacher, updateParent, addTeacherSpecialty, deleteTeacherSpecialty } from './api.js';
 import { checkAuthState, handleLogin, handleSignup, handleLogout } from './auth.js';
-import { navigateTo, renderPage } from './ui/navigation.js';
+import { navigateTo, renderPage, handleParentLogFilterTypeChange, handleParentLogFilterEntityChange } from './ui/navigation.js';
 import { toggleSidebar, displayGlobalError, initializeLayout } from './ui/layout.js';
 import { showStudentRegistrationWizard } from './ui/studentWizard.js';
 import { confirmDeleteStudent } from './ui/templates.js';
 import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback, showModal, showConfirmDialog } from './ui/modals.js';
-import { renderTeacherTuitionLogsPage, handleVoidLog, showChargesDetail, showAddTuitionLogModal, renderTeacherPaymentLogsPage, showAddPaymentLogModal, handleVoidPaymentLog, showMeetingLinkModal, showMeetingLinkDetailsModal } from './ui/teacher.js';
+import { renderTeacherTuitionLogsPage, handleVoidLog, showChargesDetail, showAddTuitionLogModal, renderTeacherPaymentLogsPage, showAddPaymentLogModal, handleVoidPaymentLog, showMeetingLinkModal, showMeetingLinkDetailsModal, handleTuitionFilterTypeChange, handleTuitionFilterEntityChange, handlePaymentFilterTypeChange, handlePaymentFilterEntityChange } from './ui/teacher.js';
 import { renderNotesList, showCreateNoteModal, showUpdateNoteModal } from './ui/notes.js';
-import { renderStudentProfile, handleSaveStudentDetails, handleSaveStudentAvailability, handleCreateStudent, showAddSubjectModal, handleRemoveSubject, handleProfileTimetableAction, updateProfileTimetable } from './ui/profile.js';
+import { renderStudentProfile, handleSaveStudentDetails, handleCreateStudent, showAddSubjectModal, handleRemoveSubject, handleProfileTimetableAction, updateProfileTimetable } from './ui/profile.js';
+import { renderTimetableComponent, wizardTimetableHandlers } from './ui/timetable.js';
+
 import { App } from '@capacitor/app';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 
 // --- STATE FOR WIZARD ---
 let pendingSpecialties = [];
+let pendingTeacherAvailability = {}; // New state for teacher signup timetable
+
+function initializeTeacherAvailability() {
+    pendingTeacherAvailability = { availability: {} };
+    config.daysOfWeek.forEach(day => {
+        const dayKey = day.toLowerCase();
+        pendingTeacherAvailability.availability[dayKey] = [];
+        // Default Sleep
+        pendingTeacherAvailability.availability[dayKey].push({ type: 'sleep', ...config.defaultSleepTimes });
+        // Default Work (Weekdays)
+        const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
+        if (weekdays.includes(dayKey)) {
+             pendingTeacherAvailability.availability[dayKey].push({ type: 'work', start: '07:00', end: '15:00' });
+        }
+    });
+}
+
+function renderTeacherSignupTimetable() {
+    const container = document.getElementById('teacher-signup-timetable-container');
+    if (container) {
+        container.innerHTML = renderTimetableComponent(true, pendingTeacherAvailability);
+        // Replace School button with Work button
+        const schoolBtn = container.querySelector('button[data-type="school"]');
+        if (schoolBtn) {
+            schoolBtn.dataset.type = 'work';
+            schoolBtn.innerHTML = '<i class="fas fa-briefcase mr-2"></i> Set All Work Times';
+        }
+    }
+}
+
+function mapTeacherUiAvailabilityToApi() {
+    const apiIntervals = [];
+    config.daysOfWeek.forEach((day, index) => {
+        const dayKey = day.toLowerCase();
+        const events = pendingTeacherAvailability.availability[dayKey] || [];
+        events.forEach(event => {
+            apiIntervals.push({
+                day_of_week: index + 1,
+                start_time: event.start.length === 5 ? `${event.start}:00` : event.start,
+                end_time: event.end.length === 5 ? `${event.end}:00` : event.end,
+                availability_type: event.type
+            });
+        });
+    });
+    return apiIntervals;
+}
 
 // --- DATA HANDLERS ---
 async function handleSaveStudent(studentData) {
@@ -254,10 +302,12 @@ function toggleAuthMode(isSignup) {
     
     document.getElementById('step-1-container').classList.remove('hidden');
     document.getElementById('step-2-container').classList.add('hidden');
+    document.getElementById('step-3-container').classList.add('hidden');
     document.getElementById('auth-back-btn').classList.add('hidden');
     
     pendingSpecialties = [];
     renderSpecialtiesList();
+    initializeTeacherAvailability();
 
     if (isSignup) {
         title.textContent = "Create Account - Sign Up";
@@ -284,9 +334,16 @@ function updateSignupButtonText() {
     const actionBtn = document.getElementById('auth-action-btn');
     const isSignup = actionBtn.dataset.mode === 'signup';
     const step2Visible = !document.getElementById('step-2-container').classList.contains('hidden');
+    const step3Visible = !document.getElementById('step-3-container').classList.contains('hidden');
 
-    if (isSignup && role === 'teacher' && !step2Visible) {
-        actionBtn.textContent = 'Next';
+    if (isSignup && role === 'teacher') {
+        if (!step2Visible && !step3Visible) {
+             actionBtn.textContent = 'Next';
+        } else if (step2Visible) {
+             actionBtn.textContent = 'Next';
+        } else {
+             actionBtn.textContent = 'Sign Up';
+        }
     } else if (isSignup) {
         actionBtn.textContent = 'Sign Up';
     }
@@ -344,34 +401,46 @@ document.body.addEventListener('click', (e) => {
         const role = document.getElementById('role').value;
         const step1Container = document.getElementById('step-1-container');
         const step2Container = document.getElementById('step-2-container');
+        const step3Container = document.getElementById('step-3-container');
         const backBtn = document.getElementById('auth-back-btn');
-        const actionBtn = document.getElementById('auth-action-btn');
 
-        if (mode === 'signup' && role === 'teacher' && step2Container.classList.contains('hidden')) {
-            // Validate Step 1 first
-            const step1Valid = validateAuthForm(true);
-            if (step1Valid) {
-                // Go to Step 2
-                step1Container.classList.add('hidden');
-                step2Container.classList.remove('hidden');
-                backBtn.classList.remove('hidden');
-                populateSpecialtyDropdowns();
+        if (mode === 'signup' && role === 'teacher') {
+            const step2Hidden = step2Container.classList.contains('hidden');
+            const step3Hidden = step3Container.classList.contains('hidden');
+
+            if (step2Hidden && step3Hidden) {
+                // Step 1 -> Step 2
+                const step1Valid = validateAuthForm(true);
+                if (step1Valid) {
+                    step1Container.classList.add('hidden');
+                    step2Container.classList.remove('hidden');
+                    backBtn.classList.remove('hidden');
+                    populateSpecialtyDropdowns();
+                    updateSignupButtonText();
+                }
+            } else if (!step2Hidden) {
+                // Step 2 -> Step 3
+                if (pendingSpecialties.length === 0) {
+                    showAuthFeedback("Please add at least one specialty.", "error");
+                    return;
+                }
+                step2Container.classList.add('hidden');
+                step3Container.classList.remove('hidden');
+                renderTeacherSignupTimetable();
                 updateSignupButtonText();
+            } else {
+                 // Step 3 -> Submit
+                 const credentials = validateAuthForm(true); 
+                 const availability = mapTeacherUiAvailabilityToApi();
+                 handleSignup(credentials.email, credentials.password, credentials.firstName, credentials.lastName, credentials.role, pendingSpecialties, availability);
             }
         } else {
-            // Normal Login or Final Signup
+            // Normal Login or Final Signup (Parent)
             const credentials = validateAuthForm(mode === 'signup');
             if (credentials) {
                 if (mode === 'signup') {
-                    // Attach specialties if teacher
-                    if (role === 'teacher') {
-                        credentials.teacher_specialties = pendingSpecialties;
-                        if (pendingSpecialties.length === 0) {
-                            showAuthFeedback("Please add at least one specialty.", "error");
-                            return;
-                        }
-                    }
-                    handleSignup(credentials.email, credentials.password, credentials.firstName, credentials.lastName, credentials.role, credentials.teacher_specialties);
+                    // Parent Signup
+                    handleSignup(credentials.email, credentials.password, credentials.firstName, credentials.lastName, credentials.role);
                 } else {
                     handleLogin(credentials.email, credentials.password);
                 }
@@ -380,9 +449,17 @@ document.body.addEventListener('click', (e) => {
     }
 
     if (closest('#auth-back-btn')) {
-        document.getElementById('step-1-container').classList.remove('hidden');
-        document.getElementById('step-2-container').classList.add('hidden');
-        document.getElementById('auth-back-btn').classList.add('hidden');
+        const step2Container = document.getElementById('step-2-container');
+        const step3Container = document.getElementById('step-3-container');
+        
+        if (!step3Container.classList.contains('hidden')) {
+             step3Container.classList.add('hidden');
+             step2Container.classList.remove('hidden');
+        } else if (!step2Container.classList.contains('hidden')) {
+             step2Container.classList.add('hidden');
+             document.getElementById('step-1-container').classList.remove('hidden');
+             document.getElementById('auth-back-btn').classList.add('hidden');
+        }
         updateSignupButtonText();
     }
 
@@ -425,6 +502,23 @@ document.body.addEventListener('click', (e) => {
         const currentMode = document.getElementById('auth-action-btn').dataset.mode || 'login';
         toggleAuthMode(currentMode === 'login');
     }
+
+    // Teacher Signup Timetable Interactions
+    if (closest('#teacher-signup-timetable-container')) {
+        const grid = closest('#timetable-grid-main');
+        if (grid && target === grid) {
+             wizardTimetableHandlers.showAddEventModal(pendingTeacherAvailability, grid.dataset.dayKey, e.offsetY, renderTeacherSignupTimetable);
+        }
+        const bubble = closest('.event-bubble');
+        if (bubble && grid) {
+             wizardTimetableHandlers.showEditEventModal(pendingTeacherAvailability, grid.dataset.dayKey, bubble.dataset.start, renderTeacherSignupTimetable);
+        }
+        const setAllBtn = closest('.set-all-times-btn');
+        if (setAllBtn) {
+             wizardTimetableHandlers.showSetAllTimesModal(pendingTeacherAvailability, setAllBtn.dataset.type, renderTeacherSignupTimetable);
+        }
+    }
+
     if (closest('#logout-button')) { handleLogout(); }
 
     // Parent Specific
@@ -454,6 +548,22 @@ document.body.addEventListener('click', (e) => {
     }
     const chargesBtn = closest('.view-charges-btn');
     if (chargesBtn) { showChargesDetail(chargesBtn.dataset.logId); }
+
+    // Teacher - Toggle Parent Breakdown
+    if (closest('#toggle-parent-breakdown-btn')) {
+        const content = document.getElementById('parent-breakdown-content');
+        const icon = closest('#toggle-parent-breakdown-btn').querySelector('i');
+        if (content) {
+            content.classList.toggle('hidden');
+            if (content.classList.contains('hidden')) {
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+            } else {
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            }
+        }
+    }
 
     // Teacher - Payment Logs
     if (closest('#add-new-payment-log-btn')) { showAddPaymentLogModal(); }
@@ -588,11 +698,6 @@ document.body.addEventListener('click', (e) => {
         handleSaveStudentDetails(btn.dataset.studentId);
     }
 
-    if (closest('#save-student-availability-btn')) {
-        const btn = closest('#save-student-availability-btn');
-        handleSaveStudentAvailability(btn.dataset.studentId);
-    }
-
     if (closest('#create-student-btn')) {
         handleCreateStudent();
     }
@@ -633,7 +738,7 @@ document.body.addEventListener('click', (e) => {
     }
 
     // Timetable Page Specific
-    const mainTimetable = closest('#page-content .timetable-component');
+    const mainTimetable = closest('.timetable-component');
     if (mainTimetable) {
         const dayNavBtn = closest('.day-nav-btn');
         if (dayNavBtn) {
@@ -642,7 +747,10 @@ document.body.addEventListener('click', (e) => {
             
             if (closest('#profile-timetable-wrapper')) {
                 updateProfileTimetable();
-            } else {
+            } else if (closest('#teacher-signup-timetable-container')) {
+                renderTeacherSignupTimetable();
+            } else if (!closest('#wizard-timetable-container')) {
+                // If NOT in student wizard modal (which handles its own nav), then render main page
                 renderPage();
             }
         }
@@ -676,6 +784,29 @@ document.getElementById('page-content').addEventListener('change', (e) => {
         } else {
             container.innerHTML = '<div class="text-center text-gray-500 py-8">Select a student above to view and edit their details.</div>';
         }
+    }
+
+    // Teacher Filters
+    if (e.target.id === 'tuition-filter-type') handleTuitionFilterTypeChange(e.target.value);
+    if (e.target.id === 'tuition-filter-entity') handleTuitionFilterEntityChange(e.target.value);
+    if (e.target.id === 'payment-filter-type') handlePaymentFilterTypeChange(e.target.value);
+    if (e.target.id === 'payment-filter-entity') handlePaymentFilterEntityChange(e.target.value);
+
+    // Parent Logs Filters
+    if (e.target.id === 'parent-logs-filter-type') handleParentLogFilterTypeChange(e.target.value);
+    if (e.target.id === 'parent-logs-filter-entity') handleParentLogFilterEntityChange(e.target.value);
+
+    // NEW: Timetable Student Selector (Renamed ID)
+    if (e.target.id === 'timetable-student-selector') {
+        appState.currentStudent = appState.students.find(s => s.id === e.target.value) || null;
+        renderPage(); 
+    }
+
+    // Teacher Timetable Selector
+    if (e.target.id === 'teacher-timetable-selector') {
+        appState.teacherTimetableTarget = e.target.value || null; // Store ID or null for 'My Schedule'
+        // Re-render specifically the teacher timetables page to refresh data
+        renderPage();
     }
 });
 

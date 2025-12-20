@@ -1,5 +1,25 @@
 import { appState, config } from '../config.js';
-import { fetchTeacher, fetchParent, fetchStudent, fetchTeachersBySpecialty, fetchTimezones, fetchCurrencies, updateStudent, postStudent, fetchTeacherSpecialties, updateTeacher, updateParent, addTeacherSpecialty, deleteTeacherSpecialty } from '../api.js';
+import { 
+    fetchTeacher, 
+    fetchParent, 
+    fetchStudent, 
+    fetchTeachersBySpecialty, 
+    fetchTimezones, 
+    fetchCurrencies, 
+    updateStudent, 
+    postStudent, 
+    fetchTeacherSpecialties, 
+    updateTeacher, 
+    updateParent, 
+    addTeacherSpecialty, 
+    deleteTeacherSpecialty,
+    addStudentAvailability,
+    updateStudentAvailability,
+    deleteStudentAvailability,
+    addTeacherAvailability,
+    updateTeacherAvailability,
+    deleteTeacherAvailability
+} from '../api.js';
 import { showLoadingOverlay, hideStatusOverlay, showModal, showConfirmDialog, showStatusMessage, closeModal } from './modals.js';
 import { renderPage } from './navigation.js';
 import { renderTimetableComponent, wizardTimetableHandlers } from './timetable.js';
@@ -22,6 +42,7 @@ function mapApiIntervalsToUi(apiIntervals) {
         const dayName = config.daysOfWeek[interval.day_of_week - 1]?.toLowerCase();
         if (dayName) {
             availability[dayName].push({
+                id: interval.id, // Include ID for updates/deletes
                 type: interval.availability_type,
                 start: interval.start_time.slice(0, 5), // HH:MM:SS -> HH:MM
                 end: interval.end_time.slice(0, 5)
@@ -92,6 +113,25 @@ export async function renderTeacherProfile(userId = appState.currentUser?.id) {
         fetchCurrencies()
     ]);
 
+    // Use temp state for availability if available (though profile is usually view-only unless we are in a 'mode', but here we are in the main profile page)
+    // Actually, we should initialize tempStudentProfileData structure for teacher editing too if we want to use the same logic.
+    // However, teacher profile editing is currently different (modal vs inline).
+    // Let's adapt tempStudentProfileData to be generic or use a separate state.
+    // For now, let's reuse tempStudentProfileData but populate it with teacher data.
+    
+    tempStudentProfileData = {
+        id: teacher.id,
+        availability: mapApiIntervalsToUi(teacher.availability_intervals || [])
+    };
+    // Ensure all days exist
+    config.daysOfWeek.forEach(day => {
+        const key = day.toLowerCase();
+        if (!tempStudentProfileData.availability[key]) {
+            tempStudentProfileData.availability[key] = [];
+        }
+    });
+
+
     // --- Section 1: Personal Information ---
     const timezoneOptions = timezones.map(tz => 
         `<option value="${tz}" ${teacher.timezone === tz ? 'selected' : ''}>${tz}</option>`
@@ -144,7 +184,19 @@ export async function renderTeacherProfile(userId = appState.currentUser?.id) {
         </div>
     `;
 
-    // --- Section 2: Specialties ---
+    // --- Section 2: Availability ---
+    const availabilityHTML = `
+        <div class="bg-gray-800 p-6 rounded-lg shadow-md mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-indigo-300">Availability</h3>
+            </div>
+            <div id="profile-timetable-wrapper">
+                ${renderTimetableComponent(true, tempStudentProfileData)}
+            </div>
+        </div>
+    `;
+
+    // --- Section 3: Specialties ---
     const specialtyListHTML = specialties.length > 0 
         ? specialties.map(spec => `
             <div class="flex justify-between items-center bg-gray-700 p-3 rounded-md mb-2 border border-gray-600">
@@ -176,10 +228,20 @@ export async function renderTeacherProfile(userId = appState.currentUser?.id) {
         </div>
     `;
 
+    // Update the 'Set All School' button to 'Set All Work' for teachers
+    setTimeout(() => {
+        const schoolBtn = document.querySelector('#profile-timetable-wrapper button[data-type="school"]');
+        if (schoolBtn) {
+            schoolBtn.dataset.type = 'work';
+            schoolBtn.innerHTML = '<i class="fas fa-briefcase mr-2"></i> Set All Work Times';
+        }
+    }, 0);
+
     return `
         <div class="max-w-4xl mx-auto">
             <h2 class="text-2xl font-bold mb-6">Teacher Profile</h2>
             ${personalInfoHTML}
+            ${availabilityHTML}
             ${specialtiesHTML}
         </div>
     `;
@@ -263,7 +325,7 @@ export async function renderStudentProfile(studentId, mode = 'view') {
     if (mode === 'create' || mode === 'edit') {
         tempStudentProfileData = {
             ...student,
-            availability: mode === 'create' ? {} : mapApiIntervalsToUi(student.student_availability_intervals || []),
+            availability: mode === 'create' ? {} : mapApiIntervalsToUi(student.availability_intervals || []),
             student_subjects: mode === 'create' ? [] : (student.student_subjects || [])
         };
         // Ensure all days exist in availability
@@ -428,10 +490,6 @@ export async function renderStudentProfile(studentId, mode = 'view') {
                 <div id="profile-timetable-wrapper">
                     ${renderTimetableComponent(true, tempStudentProfileData)}
                 </div>
-                ${!isCreate ? `
-                <div class="mt-6 text-right">
-                    <button id="save-student-availability-btn" data-student-id="${studentId}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md transition duration-300">Save Availability</button>
-                </div>` : ''}
             </div>
         `;
     }
@@ -459,20 +517,155 @@ export function updateProfileTimetable() {
     }
 }
 
-export function handleProfileTimetableAction(action, ...args) {
+export async function handleProfileTimetableAction(action, ...args) {
     if (!tempStudentProfileData) return;
 
     const updateCallback = () => updateProfileTimetable();
+    
+    // Check if we are in "Create Mode" (no student ID yet)
+    // Also Check if we are editing a Teacher (userId === studentId in temp data, or role check)
+    // NOTE: tempStudentProfileData.id will be the Teacher's ID when editing teacher profile.
+    const isCreateMode = !tempStudentProfileData.id;
+    const entityId = tempStudentProfileData.id;
+    const isTeacher = appState.currentUser.role === 'teacher' && appState.currentUser.id === entityId;
+
+    // --- API Callbacks for Immediate Mode ---
+    const onSaveCallback = async (data) => {
+        if (isCreateMode) return; // Wizard handles its own saving via local array
+        
+        const dayIndex = config.daysOfWeek.findIndex(d => d.toLowerCase() === args[0].toLowerCase()) + 1;
+        
+        const payload = {
+            day_of_week: dayIndex,
+            start_time: data.start + ":00",
+            end_time: data.end + ":00",
+            availability_type: data.type
+        };
+
+        if (action === 'add') {
+            if (isTeacher) {
+                await addTeacherAvailability(entityId, payload);
+            } else {
+                await addStudentAvailability(entityId, payload);
+            }
+        } else if (action === 'edit') {
+            const updatePayload = {
+                start_time: data.start + ":00",
+                end_time: data.end + ":00"
+            };
+            if (isTeacher) {
+                await updateTeacherAvailability(entityId, data.id, updatePayload);
+            } else {
+                await updateStudentAvailability(entityId, data.id, updatePayload);
+            }
+        }
+        // After API success, refresh data
+        let updatedEntity;
+        if (isTeacher) {
+            updatedEntity = await fetchTeacher(entityId);
+        } else {
+            updatedEntity = await fetchStudent(entityId);
+        }
+        tempStudentProfileData.availability = mapApiIntervalsToUi(updatedEntity.availability_intervals);
+    };
+
+    const onDeleteCallback = async (data) => {
+        if (isCreateMode) return;
+        if (!data.id) {
+            throw new Error("Cannot delete interval without ID.");
+        }
+        
+        if (isTeacher) {
+            await deleteTeacherAvailability(entityId, data.id);
+        } else {
+            await deleteStudentAvailability(entityId, data.id);
+        }
+        
+        // Refresh
+        let updatedEntity;
+        if (isTeacher) {
+            updatedEntity = await fetchTeacher(entityId);
+        } else {
+            updatedEntity = await fetchStudent(entityId);
+        }
+        tempStudentProfileData.availability = mapApiIntervalsToUi(updatedEntity.availability_intervals);
+    };
+
+    const onSetAllCallback = async (type, start, end) => {
+        if (isCreateMode) return; 
+        
+        const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
+        const daysToUpdate = (type === 'school' || type === 'work') ? weekdays : config.daysOfWeek;
+        
+        const promises = daysToUpdate.map(async (dayName) => {
+            const dayKey = dayName.toLowerCase();
+            const dayIndex = config.daysOfWeek.indexOf(dayName) + 1; // 1-based index for API
+            
+            // Find existing interval for this day and type
+            const existingInterval = tempStudentProfileData.availability[dayKey]?.find(i => i.type === type);
+            
+            if (existingInterval && existingInterval.id) {
+                const payload = {
+                    start_time: start + ":00",
+                    end_time: end + ":00"
+                };
+                return isTeacher 
+                    ? updateTeacherAvailability(entityId, existingInterval.id, payload)
+                    : updateStudentAvailability(entityId, existingInterval.id, payload);
+            } else {
+                const payload = {
+                    day_of_week: dayIndex,
+                    start_time: start + ":00",
+                    end_time: end + ":00",
+                    availability_type: type
+                };
+                return isTeacher
+                    ? addTeacherAvailability(entityId, payload)
+                    : addStudentAvailability(entityId, payload);
+            }
+        });
+
+        await Promise.all(promises);
+        
+        // Refresh data after bulk operation
+        let updatedEntity;
+        if (isTeacher) {
+            updatedEntity = await fetchTeacher(entityId);
+        } else {
+            updatedEntity = await fetchStudent(entityId);
+        }
+        tempStudentProfileData.availability = mapApiIntervalsToUi(updatedEntity.availability_intervals);
+    };
+
 
     if (action === 'add') {
         // args: [dayKey, pixelY]
-        wizardTimetableHandlers.showAddEventModal(tempStudentProfileData, args[0], args[1], updateCallback);
+        // Pass onSaveCallback only if NOT in create mode
+        wizardTimetableHandlers.showAddEventModal(
+            tempStudentProfileData, 
+            args[0], 
+            args[1], 
+            updateCallback, 
+            isCreateMode ? null : onSaveCallback
+        );
     } else if (action === 'edit') {
         // args: [dayKey, startTime]
-        wizardTimetableHandlers.showEditEventModal(tempStudentProfileData, args[0], args[1], updateCallback);
+        wizardTimetableHandlers.showEditEventModal(
+            tempStudentProfileData, 
+            args[0], 
+            args[1], 
+            updateCallback, 
+            isCreateMode ? null : onSaveCallback,
+            isCreateMode ? null : onDeleteCallback
+        );
     } else if (action === 'setAll') {
         // args: [type]
-        wizardTimetableHandlers.showSetAllTimesModal(tempStudentProfileData, args[0], updateCallback);
+        wizardTimetableHandlers.showSetAllTimesModal(
+            tempStudentProfileData, 
+            args[0], 
+            updateCallback,
+            isCreateMode ? null : onSetAllCallback // Pass the bulk update callback
+        );
     }
 }
 
@@ -524,25 +717,8 @@ export async function handleSaveStudentDetails(studentId) {
     }
 }
 
-// 2. Save Availability
-export async function handleSaveStudentAvailability(studentId) {
-    if (!tempStudentProfileData) return;
-
-    showLoadingOverlay('Saving Availability...');
-    try {
-        const apiAvailability = mapUiAvailabilityToApi(tempStudentProfileData.availability);
-        const payload = {
-            student_availability_intervals: apiAvailability
-        };
-
-        await updateStudent(studentId, payload);
-        showStatusMessage('success', 'Availability saved successfully.');
-    } catch (error) {
-        showStatusMessage('error', error.message);
-    } finally {
-        hideStatusOverlay();
-    }
-}
+// 2. Save Availability (Deprecated/Removed)
+// Availability is now saved immediately via handleProfileTimetableAction using the new endpoints.
 
 // 3. Create Student (Combines everything)
 export async function handleCreateStudent() {

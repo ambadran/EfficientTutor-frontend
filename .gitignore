@@ -25,6 +25,7 @@ __pychache__
 tmp
 tmp*
 node_modules/
+.gemini/
 
 # --- Web ---
 dist/
@@ -52,3 +53,4 @@ ios/App/App/public/
 ios/App/Pods/
 # Xcode build outputs
 ios/DerivedData/
+

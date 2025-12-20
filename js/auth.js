@@ -92,11 +92,11 @@ export async function handleLogin(email, password) {
 }
 
 // --- UPDATED: handleSignup no longer logs in, shows message ---
-export async function handleSignup(email, password, firstName, lastName, role, specialties = []) {
+export async function handleSignup(email, password, firstName, lastName, role, specialties = [], availabilityIntervals = []) {
     showLoadingOverlay('Signing up...');
     try {
         // Signup returns user details (UserRead) but doesn't log them in
-        await signupUser(email, password, firstName, lastName, role, specialties);
+        await signupUser(email, password, firstName, lastName, role, specialties, availabilityIntervals);
 
         // Don't store token or user data
         hideStatusOverlay(); // Hide loading
