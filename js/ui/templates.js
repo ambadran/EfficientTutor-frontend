@@ -2,6 +2,7 @@ import { appState, config } from '../config.js';
 import { fetchNotes, fetchFinancialSummary, fetchTuitionLogs, fetchTuitions, fetchTimetable, fetchTeacher } from '../api.js';
 import { showModal, closeModal , showLoadingOverlay, hideStatusOverlay} from './modals.js';
 import { renderPage } from './navigation.js';
+import logoUrl from '../../assets/EfficientTutor_logo.png';
 
 // --- Helper: Render Parent Log - Mobile Card ---
 function renderMobileLogCard(log) {
@@ -139,7 +140,7 @@ export function renderSidebar(role) {
 export function renderLoginPage() {
     return `
         <div class="max-w-md mx-auto mt-10 bg-gray-800 p-8 rounded-xl shadow-lg">
-            <img src="assets/EfficientTutor_logo.png" alt="EfficientTutor Logo" class="mx-auto h-16 w-auto mb-4">
+            <img src="${logoUrl}" alt="EfficientTutor Logo" class="mx-auto h-16 w-auto mb-4">
             <h3 id="auth-title" class="text-2xl font-bold text-center mb-6">Welcome - Log In</h3>
             
             <form id="auth-form" class="space-y-4">

@@ -2,12 +2,10 @@
 import { Capacitor } from '@capacitor/core';
 
 export const config = {
-    // UPDATED: Checks for Native Platform first, then localhost
-    backendUrl: Capacitor.isNativePlatform()
-        ? 'https://personal-time-manager.onrender.com' // Production backend for mobile apps
-        : (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost' || window.location.hostname === '0.0.0.0'
-            ? 'http://127.0.0.1:8000' // Local backend for testing
-            : 'https://personal-time-manager.onrender.com'), // Production backend for web
+    // DETERMINISTIC BACKEND SELECTION:
+    // Uses VITE_API_URL from .env file if present (e.g. VITE_API_URL=http://192.168.1.7:8000)
+    // Otherwise falls back to the production URL.
+    backendUrl: import.meta.env.VITE_API_URL || 'https://personal-time-manager.onrender.com',
     
     subjects: ['Math', 'Physics', 'Chemistry', 'Biology', 'IT'],
     // NEW: Enums for the notes feature, from the backend spec

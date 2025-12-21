@@ -99,16 +99,30 @@ If your phone and computer are on different Wi-Fi networks (or you have router i
 4.  **iPhone:** Turn **OFF** Wi-Fi. (Forces data over USB).
 5.  **Verify:** Open Safari on iPhone and load `google.com`.
 
-### 4.2 Run Backend
-The backend must listen on all interfaces (`0.0.0.0`), not just localhost.
+### 4.2 Configure App (Deterministic Toggle)
+We use Vite environment variables to control which backend the app connects to. This is safer than editing code.
+
+1.  **Create a `.env` file** in the root directory (this file is git-ignored):
+    ```bash
+    # To connect to your Linux PC:
+    VITE_API_URL=http://192.168.1.7:8000
+
+    # OR To connect to Mac local:
+    # VITE_API_URL=http://127.0.0.1:8000
+    ```
+2.  **To switch back to Production:**
+    Simply rename the file to `.env.bak` or comment out the line with `#`. If `VITE_API_URL` is not defined, the app automatically falls back to the Render production URL.
+
+3.  **Apply changes:**
+    After editing `.env`, you **must** rebuild the app for the changes to take effect on the phone:
+    ```bash
+    npm run build:mobile
+    ```
+
+### 4.3 Run Backend
+The backend (on your Linux PC or Mac) must listen on all interfaces (`0.0.0.0`), not just localhost, to allow the iPhone to connect.
 ```bash
 fastapi dev main.py --host 0.0.0.0 --port 8000
-```
-
-### 4.3 Configure App
-Update `js/config.js` to point to your Mac's Bridge IP (usually `192.168.2.1`).
-```javascript
-backendUrl: Capacitor.isNativePlatform() ? 'http://192.168.2.1:8000' : ...
 ```
 
 ---
