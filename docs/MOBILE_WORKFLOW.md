@@ -141,6 +141,24 @@ npx capacitor-assets generate --ios --android
 # 3. Cleanup
 rm assets/logo.png
 ```
-*Note: This updates `ios/App/App/Assets.xcassets` and `android/app/src/main/res`.*
+---
+
+## 6. Backend CORS Configuration
+
+When connecting a mobile app to a backend, you **must** update the backend's CORS settings. If you don't, the app will show "Application Error: Load Failed" even if the server is reachable.
+
+### 6.1 Required Origins
+Add these strings to your FastAPI `allow_origins` list:
+
+```python
+origins = [
+    "capacitor://localhost",      # Mandatory for iOS App
+    "http://localhost",           # Mandatory for Android App
+    "http://localhost:3000",      # Web Development
+]
+```
+
+### 6.2 Debugging CORS
+If you see a 200 OK in your backend logs but the app still says "Load Failed", it is almost always a missing origin in this list.
 
 

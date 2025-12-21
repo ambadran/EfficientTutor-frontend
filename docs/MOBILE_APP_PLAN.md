@@ -1,7 +1,7 @@
 # Mobile Application Migration Plan (EfficientTutor)
 
-**Current Status:** ✅ Phase 1 & 2 Complete (Vite & Capacitor Integrated).
-**Active Workflow:** Use `npm run dev` for web, `npm run build:mobile` for app updates.
+**Current Status:** ✅ Phase 1, 2, 3, 4, 6 Complete. Phase 7 & 8 In Progress.
+**Active Workflow:** Use `npm run dev` for web, `npm run build:mobile` for app updates. Use `.env` for backend selection.
 
 This document outlines the step-by-step strategy to transform the EfficientTutor web application into a native mobile application for iOS and Android using **Capacitor**.
 
@@ -168,21 +168,15 @@ App.addListener('backButton', ({ canGoBack }) => {
 
 ## Phase 4: Configuration & API
 
-### 4.1 Dynamic Backend URL
-The app cannot use `localhost` when running on the phone.
+### 4.1 Deterministic Backend URL (Vite + .env) ✅
+We moved away from auto-detection to a deterministic `.env` based approach.
 Update `js/config.js`:
 ```javascript
-import { Capacitor } from '@capacitor/core';
-
-const isNative = Capacitor.isNativePlatform();
-
 export const config = {
-    backendUrl: isNative 
-        ? 'https://personal-time-manager.onrender.com' // Always production on mobile
-        : (window.location.hostname === 'localhost' ? 'http://127.0.0.1:8000' : 'https://...'),
-    // ...
+    backendUrl: import.meta.env.VITE_API_URL || 'https://personal-time-manager.onrender.com',
 };
 ```
+*Action:* Create `.env` locally with `VITE_API_URL=http://<YOUR_IP>:8000`.
 
 ---
 
@@ -244,27 +238,18 @@ To automate everything, we add a specific command to `package.json`.
 
 ## Phase 7: Final Polishing & Assets
 
-1.  **Icons & Splash Screen:**
-    Use `@capacitor/assets` to automatically generate all icon sizes from a single source image.
-    ```bash
-    npm install @capacitor/assets --save-dev
-    npx capacitor-assets generate
-    ```
-2.  **Permissions:**
-    Check `AndroidManifest.xml` and `Info.plist` to ensure you are only requesting permissions you use (Internet is default, but Camera/Push need explicit entries).
-3.  **Asset Path Fixes (Important):**
+1.  **Icons & Splash Screen:** ✅ Done.
+2.  **Permissions:** ✅ Done (Info.plist & AndroidManifest updated).
+3.  **Asset Path Fixes (Important):** ⚠️ Pending.
     In templates (e.g., `js/ui/templates.js`), Vite cannot automatically detect image paths inside string literals. 
-    *Action:* Import images at the top of the file: `import logo from '../../assets/logo.png';` and use the variable in the HTML string.
-4.  **Versioning:**
-    Sync your `package.json` version with the native app versions using `npx cap sync` configuration or manual updates in Xcode/Android Studio before release.
+    *Action:* Import images at the top of the file: `import logoUrl from '../../assets/logo.png';` and use the variable in the HTML string.
+4.  **Versioning:** ⚠️ Pending.
 
 ---
 
 ## Phase 8: Native IDE Configuration (Post-Sync)
 
-These steps are done directly in Xcode or Android Studio and are persistent as long as the `ios/` and `android/` folders are committed.
-
-### 8.1 iOS (Xcode)
+### 8.1 iOS (Xcode) ✅ Done.
 1.  **Signing:** Select the 'App' target -> Signing & Capabilities -> Select your Team.
 2.  **Capabilities:** 
     *   Click `+ Capability`.
@@ -272,6 +257,6 @@ These steps are done directly in Xcode or Android Studio and are persistent as l
     *   Add **Background Modes** -> Check **Remote notifications**.
 3.  **Info.plist:** Add user-friendly descriptions for any requested permissions (e.g., `NSCameraUsageDescription`).
 
-### 8.2 Android (Android Studio)
+### 8.2 Android (Android Studio) ⚠️ Pending Verification.
 1.  **Permissions:** Ensure `POST_NOTIFICATIONS` is in `AndroidManifest.xml` for Android 13+.
 2.  **Variables:** Check `variables.gradle` for matching support library versions if plugins conflict.

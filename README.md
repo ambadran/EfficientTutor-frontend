@@ -1,61 +1,86 @@
 # EfficientTutor
-## Introduction
-This is a Tuition Management application. It's main purpose is to:
- - Register Student: Take in, subjects, amount per week, busy times.
- - Communicate with my "Personal Time Management" backend server which contains the MASTER ALGORITHM to take into account all studend time requirements, as well as all my time requirements to make the *perfect TimeTable* :D
- - Show Timetable for specific students.
- - Show logs of every session taken with details since begginning of year as well as summary.
- 
-## Upcoming Features
- - Notification center: notifiy when timetable change (matching student requirement ofcoarse), session start/end, HW posted
- - Re-schedule / cancel / add sessions!
 
-## Development & Deployment
+EfficientTutor is a comprehensive Tuition Management application designed to streamline scheduling, financial tracking, and communication between teachers, parents, and students.
 
-This project uses **Vanilla JavaScript** for logic and **Tailwind CSS** for styling, bundled by **Vite**. It supports deployment as a Web App (PWA) and a Native Mobile App (iOS/Android via Capacitor).
+The application leverages a sophisticated "Personal Time Management" backend algorithm to generate optimized timetables based on student requirements and teacher availability.
+
+## 🚀 Key Features
+
+- **Dynamic Timetable**: Automated scheduling that accounts for student busy times and academic requirements.
+- **Financial Tracking**: Comprehensive logs for tuitions and payments, including monthly summaries and "Owed" status.
+- **Student Management**: Detailed profiles for students, including subject enrollment, availability management, and credential generation.
+- **Notes System**: Centralized repository for study notes, homework, and past papers.
+- **Multi-Role Support**: Tailored experiences for Teachers, Parents, and Students.
+- **Cross-Platform**: Fully functional as a Web Application and Native Mobile App (iOS & Android).
+
+## 🛠 Architecture & Tech Stack
+
+This project follows a "Vanilla JavaScript" philosophy for performance and simplicity, enhanced with modern build tools.
+
+- **Frontend**: Vanilla JavaScript (ES6 Modules) with a Single Global State (`appState`).
+- **Styling**: Tailwind CSS with Mobile Safe Area support.
+- **Build Tool**: Vite for bundling and optimized asset delivery.
+- **Mobile Wrapper**: Capacitor for native iOS and Android integration.
+- **Backend**: Python/FastAPI (Centralized API layer in `js/api.js`).
+
+## 💻 Development Workflow
 
 ### Prerequisites
-*   **Node.js** & **npm** (Required)
-*   **Android Studio** (For Android development)
-*   **Xcode** (For iOS development - Mac only)
 
-### Local Development (Web)
-1.  **Install Dependencies:**
-    ```bash
-    npm install
-    ```
-2.  **Start Dev Server:**
-    This command starts a local server with Hot Module Replacement (HMR). It automatically compiles Tailwind CSS and JavaScript.
-    ```bash
-    npm run dev
-    ```
-3.  **Open App:**
-    The terminal will show the local URL (usually `http://localhost:3000`).
+- **Node.js** (v18+) & **npm**
+- **Xcode** (for iOS development)
+- **Android Studio** (for Android development)
+- **CocoaPods** (for iOS dependency management)
 
-### Building for Production (Web)
-To generate the final optimized files for deployment:
+### 1. Initial Setup
+
 ```bash
-npm run build
+# Clone the repository
+git clone https://github.com/ambadran/EfficientTutor.git
+cd EfficientTutor-frontend
+
+# Install dependencies
+npm install
 ```
-This creates a `dist/` folder containing the minified HTML, CSS, and JS.
 
-### Mobile Development (iOS & Android)
-The mobile apps run the code generated in the `dist/` folder inside a native container.
+### 2. Local Development (Web)
 
-1.  **Build & Sync:**
-    Whenever you make changes to the web code, run this to build the web assets and update the native projects:
-    ```bash
-    npm run build:mobile
-    ```
-2.  **Run on Device/Emulator:**
-    *   **Android:** `npm run open:android` (Opens Android Studio)
-    *   **iOS:** `npm run open:ios` (Opens Xcode)
+For logic and UI development, use the Vite dev server for hot-reloading:
 
-### Deployment (Render.com)
-When deploying this as a **Static Site** on Render:
+```bash
+npm run dev
+```
+Open `http://localhost:3000` in your browser.
 
-*   **Build Command:** `npm install && npm run build`
-*   **Publish Directory:** `dist`
+### 3. Mobile Development (iOS & Android)
 
-This ensures Render uses Vite to bundle the application correctly.
+The mobile apps serve the bundled assets from the `dist/` folder.
+
+```bash
+# Build the web assets and sync with native projects
+npm run build:mobile
+
+# Open in Native IDEs
+npm run open:ios      # Opens Xcode
+npm run open:android  # Opens Android Studio
+```
+
+*Note: After any code change, you must run `npm run build:mobile` before testing in the mobile simulator.*
+
+## 📚 Documentation
+
+For more detailed information, please refer to the documents in the `docs/` folder:
+
+- [Mobile Workflow](./docs/MOBILE_WORKFLOW.md): Detailed guide on the Vite + Capacitor build system.
+- [iOS Setup Log](./docs/IOS_BUILD_SETUP_LOG.md): Steps for configuring the iOS development environment.
+- [Layout Fixes](./docs/LAYOUT_FIX_REPORT.md): Information regarding UI adjustments for mobile.
+
+## 🌐 Environment Configuration
+
+The application automatically detects its environment in `js/config.js`:
+- **Local Web**: Connects to `http://127.0.0.1:8000`
+- **Native Mobile / Production**: Connects to the production backend on Render.com.
+
+---
+*Version: 0.2*
 
