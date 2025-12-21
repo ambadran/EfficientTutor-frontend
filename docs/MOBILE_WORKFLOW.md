@@ -128,3 +128,5 @@ npx capacitor-assets generate --ios --android
 rm assets/logo.png
 ```
 *Note: This updates `ios/App/App/Assets.xcassets` and `android/app/src/main/res`.*
+
+
