@@ -25,9 +25,25 @@ All code you write must conform to these established patterns:
     * `config.js`: Global `appState`.
     * `ui/*.js`: All HTML string generation and UI logic.
 
+## 2. Cross-Platform Strategy (Web + Mobile)
+
+We maintain a **single codebase** for Web, iOS, and Android using **Vite** and **Capacitor**.
+
+*   **Build System:** 
+    *   `npm run dev`: Local web server.
+    *   `npm run build:mobile`: Compiles JS (`vite build`) and syncs to native projects (`npx cap sync`).
+*   **Asset Handling (CRITICAL):** 
+    *   **NEVER** use hardcoded paths like `<img src="assets/logo.png">` for local files. It breaks on mobile.
+    *   **ALWAYS** import assets in JS: `import logo from '../../assets/logo.png';` then use `${logo}` in templates.
+*   **Backend Configuration:**
+    *   We use **deterministic toggling** via `.env` files.
+    *   `backendUrl` in `js/config.js` reads `import.meta.env.VITE_API_URL`.
+    *   For native debugging, we set this variable to the host machine's IP (e.g., `192.168.1.7:8000`).
+*   **Documentation:** Refer to `docs/MOBILE_WORKFLOW.md` for build/run commands and troubleshooting.
+
 ---
 
-## 2. HTML Structure & Styling
+## 3. HTML Structure & Styling
 
 * **`index.html`**: This is the single HTML "shell" for the SPA.
     * `id="sidebar"`: The navigation sidebar container.
