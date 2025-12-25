@@ -52,7 +52,42 @@ npm run dev
 ```
 Open `http://localhost:3000` in your browser.
 
-### 3. Mobile Development (iOS & Android)
+### 3. Testing on Local Network (e.g., Mobile Safari/Chrome)
+
+To test the application on other devices (like a phone) connected to the same Wi-Fi network:
+
+#### Step 1: Find your PC's Local IP Address
+Run the following command on your host machine:
+```bash
+hostname -I
+```
+*Example Output: `192.168.1.8`*
+
+#### Step 2: Configure Environment Variables
+1.  **Frontend (`.env`):** Set `VITE_API_URL` to your PC's IP with the backend port:
+    ```text
+    VITE_API_URL=http://192.168.1.8:8000
+    ```
+2.  **Backend (`.env`):** Ensure the backend allows requests from your frontend's network URL to avoid CORS issues:
+    ```text
+    BACKEND_CORS_ORIGINS=["http://192.168.1.8:3000"]
+    ```
+
+#### Step 3: Run the Servers
+1.  **Backend:** Host the FastAPI server on all interfaces:
+    ```bash
+    fastapi dev src/path/to/main.py --host 0.0.0.0 --port 8000
+    ```
+2.  **Frontend:** Run the Vite server with the `--host` flag:
+    ```bash
+    npm run dev -- --host
+    ```
+
+#### Step 4: Access the App
+On your mobile device, open Safari or Chrome and navigate to:
+`http://192.168.1.8:3000`
+
+### 4. Mobile Development (iOS & Android)
 
 The mobile apps serve the bundled assets from the `dist/` folder.
 

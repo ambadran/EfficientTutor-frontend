@@ -52,10 +52,59 @@ function formatTime(gmtString) {
 // #endregion
 
 // #region Tuition Logs
+function renderMobileTuitionLogCard(log) {
+    const isVoid = log.status === 'VOID';
+    const cardClass = isVoid ? 'opacity-50 bg-gray-800/50' : 'bg-gray-800';
+    const attendees = (log.charges || []).map(c => c.student_name).join(', ');
+
+    return `
+    <div class="${cardClass} p-4 rounded-lg shadow-sm border border-gray-700 flex flex-col gap-3">
+        <div class="flex justify-between items-start">
+            <div>
+                <p class="font-semibold text-white text-lg">${log.subject}</p>
+                <p class="text-xs text-indigo-300">Week ${log.week_number}</p>
+            </div>
+             <span class="px-2 py-1 text-xs rounded-full ${isVoid ? 'bg-gray-500/30 text-gray-300' : 'bg-blue-500/30 text-blue-300'}">${log.status}</span>
+        </div>
+
+        <div class="text-sm text-gray-400">
+             <p>${formatDate(log.start_time)}</p>
+             <p class="text-xs text-gray-500">${formatTime(log.start_time)} - ${formatTime(log.end_time)} (${log.duration})</p>
+        </div>
+
+        <div>
+            <p class="text-xs text-gray-500">Attendees</p>
+            <p class="text-sm text-gray-300">${attendees}</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 border-t border-gray-700 pt-3">
+            <div>
+                 <p class="text-xs text-gray-500">Total Cost</p>
+                 <div class="flex items-center gap-2">
+                    <span class="font-bold text-white">${log.total_cost} kwd</span>
+                    <button class="view-charges-btn text-blue-400 text-xs" data-log-id="${log.id}"><i class="fas fa-info-circle"></i></button>
+                 </div>
+            </div>
+            <div class="text-right">
+                 <p class="text-xs text-gray-500">Payment</p>
+                 <span class="text-xs font-bold uppercase ${log.paid_status === 'Paid' ? 'text-green-400' : 'text-red-400'}">${log.paid_status}</span>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-2 pt-2 border-t border-gray-700 ${isVoid ? 'hidden' : ''}">
+            <button class="correct-log-btn p-2 text-sm bg-yellow-600 hover:bg-yellow-500 rounded-md" data-log-id="${log.id}"><i class="fas fa-edit"></i> Edit</button>
+            <button class="void-log-btn p-2 text-sm bg-red-600 hover:bg-red-500 rounded-md" data-log-id="${log.id}"><i class="fas fa-ban"></i> Void</button>
+        </div>
+    </div>
+    `;
+}
+
 function renderTuitionLogsTable(logs) {
     if (logs.length === 0) return `<div class="text-center p-8 text-gray-400">No tuition logs found.</div>`;
     logs.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
-    const logsHTML = logs.map(log => {
+    
+    // Desktop Rows
+    const desktopRowsHTML = logs.map(log => {
         const isVoid = log.status === 'VOID';
         const rowClass = isVoid ? 'opacity-50 bg-gray-800/50' : 'bg-gray-800';
         return `
@@ -84,12 +133,19 @@ function renderTuitionLogsTable(logs) {
                 </td>
             </tr>`;
     }).join('');
-    return `<div class="overflow-x-auto"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-gray-900/80"><tr><th class="p-3 text-center">Week #</th><th class="p-3">Date</th><th class="p-3">Start Time</th><th class="p-3">End Time</th><th class="p-3 text-center">Duration</th><th class="p-3">Subject</th><th class="p-3">Attendees</th><th class="p-3">Total Cost</th><th class="p-3">Paid Status</th><th class="p-3">Log Status</th><th class="p-3">Type</th><th class="p-3">Actions</th></tr></thead><tbody>${logsHTML}</tbody></table></div>`;
+
+    const desktopView = `<div class="hidden md:block overflow-x-auto"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-gray-900/80"><tr><th class="p-3 text-center">Week #</th><th class="p-3">Date</th><th class="p-3">Start Time</th><th class="p-3">End Time</th><th class="p-3 text-center">Duration</th><th class="p-3">Subject</th><th class="p-3">Attendees</th><th class="p-3">Total Cost</th><th class="p-3">Paid Status</th><th class="p-3">Log Status</th><th class="p-3">Type</th><th class="p-3">Actions</th></tr></thead><tbody>${desktopRowsHTML}</tbody></table></div>`;
+
+    // Mobile Cards
+    const mobileCardsHTML = logs.map(log => renderMobileTuitionLogCard(log)).join('');
+    const mobileView = `<div class="md:hidden space-y-4">${mobileCardsHTML}</div>`;
+
+    return mobileView + desktopView;
 }
 
 function renderFinancialSummaryCards(summary) {
     return `
-        <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-blue-400">${summary.total_lessons_given_this_month}</p><p class="text-gray-400 text-sm">Lessons This Month</p></div>
             <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-green-400">${summary.total_credit_held} kwd</p><p class="text-gray-400 text-sm">Total Credit Held</p></div>
             <div class="bg-gray-800 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-400">${summary.total_owed_to_teacher} kwd</p><p class="text-gray-400 text-sm">Total Owed to You</p></div>
@@ -543,10 +599,40 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
 // #endregion
 
 // #region Payment Logs
+function renderMobilePaymentLogCard(log) {
+    const isVoid = log.status === 'VOID';
+    const cardClass = isVoid ? 'opacity-50 bg-gray-800/50' : 'bg-gray-800';
+    
+    return `
+    <div class="${cardClass} p-4 rounded-lg shadow-sm border border-gray-700 flex flex-col gap-3">
+        <div class="flex justify-between items-start">
+            <div>
+                <p class="font-semibold text-white">${log.parent_name}</p>
+                <p class="text-xs text-gray-400">${new Date(log.payment_date).toLocaleDateString()}</p>
+            </div>
+            <span class="px-2 py-1 text-xs rounded-full ${isVoid ? 'bg-red-500/30 text-red-300' : 'bg-green-500/30 text-green-300'}">${log.status}</span>
+        </div>
+
+        <div class="flex justify-between items-center">
+            <span class="font-bold text-xl text-green-400">${log.amount_paid} ${log.currency}</span>
+        </div>
+        
+        ${log.notes ? `<p class="text-sm text-gray-400 italic bg-gray-900/30 p-2 rounded">"${log.notes}"</p>` : ''}
+
+        <div class="flex justify-end gap-2 mt-2 pt-2 border-t border-gray-700 ${isVoid ? 'hidden' : ''}">
+            <button class="correct-payment-log-btn p-2 text-sm bg-yellow-600 hover:bg-yellow-500 rounded-md" data-log-id="${log.id}"><i class="fas fa-edit"></i> Edit</button>
+            <button class="void-payment-log-btn p-2 text-sm bg-red-600 hover:bg-red-500 rounded-md" data-log-id="${log.id}"><i class="fas fa-ban"></i> Void</button>
+        </div>
+    </div>
+    `;
+}
+
 function renderPaymentLogsTable(logs) {
     if (logs.length === 0) return `<div class="text-center p-8 text-gray-400">No payment logs found.</div>`;
     logs.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
-    const logsHTML = logs.map(log => {
+    
+    // Desktop Rows
+    const desktopRowsHTML = logs.map(log => {
         const isVoid = log.status === 'VOID';
         const rowClass = isVoid ? 'opacity-50 bg-gray-800/50' : 'bg-gray-800';
         return `
@@ -564,7 +650,14 @@ function renderPaymentLogsTable(logs) {
                 </td>
             </tr>`;
     }).join('');
-    return `<div class="overflow-x-auto"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-gray-900/80"><tr><th class="p-3">Date</th><th class="p-3">Parent</th><th class="p-3">Amount Paid</th><th class="p-3">Notes</th><th class="p-3">Status</th><th class="p-3">Actions</th></tr></thead><tbody>${logsHTML}</tbody></table></div>`;
+
+    const desktopView = `<div class="hidden md:block overflow-x-auto"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-gray-900/80"><tr><th class="p-3">Date</th><th class="p-3">Parent</th><th class="p-3">Amount Paid</th><th class="p-3">Notes</th><th class="p-3">Status</th><th class="p-3">Actions</th></tr></thead><tbody>${desktopRowsHTML}</tbody></table></div>`;
+
+    // Mobile Cards
+    const mobileCardsHTML = logs.map(log => renderMobilePaymentLogCard(log)).join('');
+    const mobileView = `<div class="md:hidden space-y-4">${mobileCardsHTML}</div>`;
+
+    return mobileView + desktopView;
 }
 
 export async function renderTeacherPaymentLogsPage() {

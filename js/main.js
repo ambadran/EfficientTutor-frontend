@@ -392,7 +392,53 @@ document.body.addEventListener('click', (e) => {
 
     // Navigation
     const navLink = closest('.nav-link');
-    if (navLink) { e.preventDefault(); navigateTo(navLink.id.replace('nav-', '')); }
+    if (navLink) { 
+        e.preventDefault(); 
+        if (navLink.id === 'nav-more-toggle') {
+            toggleSidebar();
+        } else {
+            navigateTo(navLink.id.replace('nav-', '')); 
+        }
+    }
+
+    // Dashboard Actions
+    const dashboardBtn = closest('.dashboard-action-btn') || closest('.view-timetable-link') || closest('.view-logs-link');
+    if (dashboardBtn) {
+        let action = dashboardBtn.dataset.action;
+        // Handle "View Schedule" link from Next Lesson widget
+        if (dashboardBtn.classList.contains('view-timetable-link')) action = 'view-timetable';
+        // Handle "View Logs" link from Financial widget
+        if (dashboardBtn.classList.contains('view-logs-link')) action = 'view-logs';
+
+        const role = appState.currentUser?.role;
+
+        if (action === 'add-log') {
+            showAddTuitionLogModal();
+        } else {
+            let targetPage = '';
+            switch (action) {
+                case 'view-timetable':
+                    targetPage = role === 'teacher' ? 'teacher-timetables' : 'timetable';
+                    break;
+                case 'view-students':
+                    targetPage = role === 'teacher' ? 'teacher-student-info' : 'student-info';
+                    break;
+                case 'view-logs':
+                    targetPage = role === 'teacher' ? 'teacher-tuition-logs' : 'logs';
+                    break;
+                case 'view-payments':
+                    targetPage = 'teacher-payment-logs';
+                    break;
+                case 'view-notes':
+                    targetPage = role === 'teacher' ? 'teacher-notes' : 'notes';
+                    break;
+                case 'view-profile':
+                    targetPage = 'profile';
+                    break;
+            }
+            if (targetPage) navigateTo(targetPage);
+        }
+    }
 
     // Authentication
     if (closest('#auth-action-btn')) {

@@ -2,7 +2,7 @@ import { appState } from './config.js';
 import { loginUser, signupUser, fetchStudents, fetchCurrentUser } from './api.js';
 import { showLoadingOverlay, hideStatusOverlay, showAuthFeedback, showStatusMessage } from './ui/modals.js';
 import { navigateTo } from './ui/navigation.js';
-import { renderSidebar } from './ui/templates.js';
+import { renderSidebar, renderBottomNav } from './ui/templates.js';
 
 // --- UPDATED: Split data loading based on role ---
 export async function loadInitialParentData() {
@@ -38,6 +38,8 @@ export async function checkAuthState() {
             appState.currentUser = userDetails; // Store fetched details
 
             renderSidebar(userDetails.role);
+            renderBottomNav(userDetails.role); // Render Mobile Bottom Nav
+            
             document.getElementById('user-info').classList.remove('hidden');
             document.getElementById('logout-button').classList.remove('hidden');
             document.getElementById('user-email').textContent = userDetails.email;
@@ -48,16 +50,14 @@ export async function checkAuthState() {
                  // Parent specific navigation
                 if (appState.students.length === 0) { // Check for first sign in concept if needed
                     navigateTo('student-info');
-                } else {
-                    navigateTo('timetable');
+                    return;
                 }
             } else if (userDetails.role === 'student') {
                 await loadInitialStudentData();
-                navigateTo('timetable'); // Student default page
-            } else if (userDetails.role === 'teacher') {
-                // No specific data load for teacher yet
-                navigateTo('teacher-tuition-logs'); // Teacher default page
             }
+
+            // Redirect all roles to Dashboard
+            navigateTo('dashboard');
 
         } catch (error) {
             // If fetching user fails (e.g., token expired), clear token and log out
@@ -68,6 +68,7 @@ export async function checkAuthState() {
     } else {
         // No token, ensure user is logged out
         renderSidebar(null);
+        renderBottomNav(null);
         appState.currentUser = null;
         appState.students = [];
         appState.currentStudent = null;
@@ -119,6 +120,7 @@ export function handleLogout() {
     document.getElementById('user-info').classList.add('hidden');
     document.getElementById('logout-button').classList.add('hidden');
     renderSidebar(null);
+    renderBottomNav(null);
 
     navigateTo('login');
 }

@@ -16,6 +16,7 @@ import { displayGlobalError } from './layout.js';
 import { renderTeacherTuitionLogsPage, renderTeacherPaymentLogsPage, renderTeacherStudentInfoPage, renderTeacherTimetablesPage } from './teacher.js';
 import { renderNotesPage } from './notes.js';
 import { renderProfilePage } from './profile.js';
+import { renderDashboardPage } from './dashboard.js';
 
 const pageContent = document.getElementById('page-content');
 const pageTitle = document.getElementById('page-title');
@@ -36,6 +37,10 @@ export async function renderPage() {
             case 'login':
                 pageTitle.textContent = 'Login / Sign Up';
                 content = renderLoginPage();
+                break;
+            case 'dashboard':
+                pageTitle.textContent = 'Home';
+                content = await renderDashboardPage();
                 break;
             case 'timetable':
                 pageTitle.textContent = 'Timetable';

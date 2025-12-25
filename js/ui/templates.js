@@ -101,6 +101,7 @@ export function renderSidebar(role) {
     let navLinks = '';
     if (role === 'parent') {
         navLinks = `
+            <a href="#" id="nav-dashboard" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-home w-6 mr-3"></i> Home</a>
             <a href="#" id="nav-timetable" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-calendar-alt w-6 mr-3"></i> Timetable</a>
             <a href="#" id="nav-tuitions" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-chalkboard-teacher w-6 mr-3"></i> Tuitions</a>
             <a href="#" id="nav-notes" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-book-open w-6 mr-3"></i> Notes</a>
@@ -111,6 +112,7 @@ export function renderSidebar(role) {
         `;
     } else if (role === 'student') {
         navLinks = `
+            <a href="#" id="nav-dashboard" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-home w-6 mr-3"></i> Home</a>
             <a href="#" id="nav-timetable" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-calendar-alt w-6 mr-3"></i> Timetable</a>
             <a href="#" id="nav-tuitions" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-chalkboard-teacher w-6 mr-3"></i> Tuitions</a>
             <a href="#" id="nav-notes" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-book-open w-6 mr-3"></i> Notes</a>
@@ -119,6 +121,7 @@ export function renderSidebar(role) {
         `;
     } else if (role === 'teacher') {
         navLinks = `
+            <a href="#" id="nav-dashboard" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-home w-6 mr-3"></i> Home</a>
             <a href="#" id="nav-teacher-tuition-logs" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-file-invoice-dollar w-6 mr-3"></i> Tuition Logs</a>
             <a href="#" id="nav-teacher-payment-logs" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-money-check-alt w-6 mr-3"></i> Payment Logs</a>
             <a href="#" id="nav-teacher-timetables" class="nav-link flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-calendar-alt w-6 mr-3"></i> Timetable</a>
@@ -135,6 +138,60 @@ export function renderSidebar(role) {
     } else {
         navContainer.classList.add('hidden');
     }
+}
+
+// --- NEW: Bottom Navigation Rendering ---
+export function renderBottomNav(role) {
+    const bottomNav = document.getElementById('bottom-nav');
+    const container = document.getElementById('bottom-nav-items');
+    
+    if (!role) {
+        bottomNav.classList.remove('translate-y-0');
+        bottomNav.classList.add('translate-y-full', 'hidden');
+        return;
+    }
+
+    let items = [];
+
+    // Common Item: Home
+    items.push({ id: 'nav-dashboard', icon: 'fa-home', label: 'Home' });
+
+    if (role === 'teacher') {
+        items.push(
+            { id: 'nav-teacher-tuition-logs', icon: 'fa-file-invoice-dollar', label: 'Logs' },
+            { id: 'nav-teacher-timetables', icon: 'fa-calendar-alt', label: 'Timetable' }
+        );
+    } else if (role === 'parent') {
+        items.push(
+            { id: 'nav-timetable', icon: 'fa-calendar-alt', label: 'Timetable' },
+            { id: 'nav-logs', icon: 'fa-history', label: 'Logs' }
+        );
+    } else if (role === 'student') {
+        items.push(
+            { id: 'nav-timetable', icon: 'fa-calendar-alt', label: 'Timetable' },
+            { id: 'nav-notes', icon: 'fa-book-open', label: 'Notes' }
+        );
+    }
+
+    // Common Item: More (opens Sidebar)
+    items.push({ id: 'nav-more-toggle', icon: 'fa-bars', label: 'More' });
+
+    const html = items.map(item => `
+        <button id="${item.id}" class="nav-link flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-indigo-400 active:text-indigo-500 transition-colors">
+            <i class="fas ${item.icon} text-lg mb-1"></i>
+            <span class="text-[10px] font-medium">${item.label}</span>
+        </button>
+    `).join('');
+
+    container.innerHTML = html;
+    
+    // Show the nav bar
+    bottomNav.classList.remove('hidden');
+    // Small delay to allow transition
+    setTimeout(() => {
+        bottomNav.classList.remove('translate-y-full');
+        bottomNav.classList.add('translate-y-0');
+    }, 50);
 }
 
 export function renderLoginPage() {
@@ -394,13 +451,20 @@ export async function renderLogsPage() {
             </div>
         `;
 
-        // --- Render Logs: Unified Table View ---
-        // We removed the split mobile/desktop view to ensure consistent visibility.
-        // On mobile, the table will be horizontally scrollable.
-        const rowsHTML = detailed_logs.map(log => renderDesktopLogRow(log)).join('');
+        // --- Render Logs: Responsive Views ---
+        
+        // 1. Mobile View (Cards)
+        const mobileRowsHTML = detailed_logs.map(log => renderMobileLogCard(log)).join('');
+        const mobileViewHTML = `
+            <div class="md:hidden space-y-4">
+                ${mobileRowsHTML || '<p class="text-center text-gray-500 py-4">No logs found.</p>'}
+            </div>
+        `;
 
-        const tableHTML = `
-            <div class="overflow-x-auto bg-gray-800 rounded-lg border border-gray-700">
+        // 2. Desktop View (Table)
+        const desktopRowsHTML = detailed_logs.map(log => renderDesktopLogRow(log)).join('');
+        const desktopViewHTML = `
+            <div class="hidden md:block overflow-x-auto bg-gray-800 rounded-lg border border-gray-700">
                 <table class="w-full text-left min-w-[800px]">
                     <thead class="bg-gray-900/50 text-gray-400 uppercase text-xs">
                         <tr>
@@ -413,7 +477,7 @@ export async function renderLogsPage() {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-700">
-                        ${rowsHTML || '<tr><td colspan="6" class="p-4 text-center text-gray-500">No logs found.</td></tr>'}
+                        ${desktopRowsHTML || '<tr><td colspan="6" class="p-4 text-center text-gray-500">No logs found.</td></tr>'}
                     </tbody>
                 </table>
             </div>
@@ -437,7 +501,8 @@ export async function renderLogsPage() {
 
                     <h3 class="text-xl font-semibold mb-4">Detailed Logs</h3>
                     
-                    ${tableHTML}
+                    ${mobileViewHTML}
+                    ${desktopViewHTML}
                 </div>
             </div>`;
     } catch (error) {
@@ -502,10 +567,18 @@ async function updateParentLogsContent(filters) {
             fetchTuitionLogs(filters)
         ]);
 
-        const rowsHTML = detailed_logs.map(log => renderDesktopLogRow(log)).join('');
+        // 1. Mobile View (Cards)
+        const mobileRowsHTML = detailed_logs.map(log => renderMobileLogCard(log)).join('');
+        const mobileViewHTML = `
+            <div class="md:hidden space-y-4">
+                ${mobileRowsHTML || '<p class="text-center text-gray-500 py-4">No logs found.</p>'}
+            </div>
+        `;
 
-        const tableHTML = `
-            <div class="overflow-x-auto bg-gray-800 rounded-lg border border-gray-700">
+        // 2. Desktop View (Table)
+        const desktopRowsHTML = detailed_logs.map(log => renderDesktopLogRow(log)).join('');
+        const desktopViewHTML = `
+            <div class="hidden md:block overflow-x-auto bg-gray-800 rounded-lg border border-gray-700">
                 <table class="w-full text-left min-w-[800px]">
                     <thead class="bg-gray-900/50 text-gray-400 uppercase text-xs">
                         <tr>
@@ -518,7 +591,7 @@ async function updateParentLogsContent(filters) {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-700">
-                        ${rowsHTML || '<tr><td colspan="6" class="p-4 text-center text-gray-500">No logs found.</td></tr>'}
+                        ${desktopRowsHTML || '<tr><td colspan="6" class="p-4 text-center text-gray-500">No logs found.</td></tr>'}
                     </tbody>
                 </table>
             </div>
@@ -533,7 +606,8 @@ async function updateParentLogsContent(filters) {
             </div>
 
             <h3 class="text-xl font-semibold mb-4">Detailed Logs</h3>
-            ${tableHTML}
+            ${mobileViewHTML}
+            ${desktopViewHTML}
         `;
 
     } catch (error) {
