@@ -26,6 +26,9 @@ tmp
 tmp*
 node_modules/
 .gemini/
+.vite/
+.vite-inspect/
+*.log
 
 # --- Web ---
 dist/
