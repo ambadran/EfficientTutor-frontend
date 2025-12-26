@@ -17,10 +17,44 @@
 *Goal: Populate the empty `user_devices` table and sync subscriptions immediately upon user activity.*
 
 ### A. Frontend (Capacitor)
-* **Logic:**
-    * Attach a listener to `PushNotifications.addListener('registration', ...)`.
-    * **Trigger:** This fires on App Install, First Launch, or if the OS rotates the token.
-    * **Action:** Call `POST /users/notifications` with payload `{ token: "device_token_xyz" }`.
+* **Platform Check Logic:**
+    * Before initializing any notification logic, check if the app is running on a Native Platform (iOS/Android).
+    * **Instruction:** If the platform is *not* native (i.e., Web/Safari), disable all notification listeners to prevent errors and duplicate logic.
+    * *Example Snippet:*
+      ```javascript
+      import { Capacitor } from '@capacitor/core';
+      if (Capacitor.isNativePlatform()) {
+          // Initialize listeners here
+      }
+      ```
+
+* **Registration Listener Logic:**
+    * Attach a listener to the `registration` event.
+    * **Trigger:** This event fires automatically on App Install, First Launch, or if the Operating System decides to rotate the token.
+    * **Action:** Call the backend endpoint `POST /users/notifications` with the new token payload.
+    * *Example Snippet:*
+      ```javascript
+      PushNotifications.addListener('registration', (token) => {
+          api.post('/users/notifications', { token: token.value });
+      });
+      ```
+
+* **Action Performed Logic (Handling Taps):**
+    * Attach a listener to the `pushNotificationActionPerformed` event.
+    * **Trigger:** This fires when a user taps on a notification banner while the app is in the background or closed.
+    * **Action:** Extract the `data` object from the payload and switch based on the `action` key (e.g., 'open_tuition' vs 'open_profile') to redirect the router.
+    * *Example Snippet:*
+      ```javascript
+      PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+          const data = notification.notification.data;
+          if (data.action === 'open_tuition') {
+              router.navigate(`/tuition/${data.tuition_id}`);
+          }
+          if (data.action === 'open_profile') {
+              router.navigate(`/profile`);
+          }
+      });
+      ```
 
 ### B. Backend (`POST /users/notifications`)
 * **Request:** `{ token: str }`
@@ -60,6 +94,24 @@
 
 ## 4. Phase 3: The Notification Triggers
 
+### The Universal "Safe Send" Logic
+*Applicable to all triggers below.*
+
+* **Goal:** Prevent the application from crashing if a message is sent to an uninstalled app or invalid token.
+* **Instruction:** Wrap the FCM send call in a `try/except` block.
+* **Error Handling:** Specifically catch the `messaging.UnregisteredError`. If this error occurs when sending to a specific token (not a topic), trigger immediate cleanup of that token from the database.
+* *Example Snippet, (please note this is a very very simple implementation, in reality, we need a comprehensive service to handl fcm communication with all its details and errors):*
+  ```python
+  def safe_send_fcm(topic_name, data):
+      try:
+          response = messaging.send(Message(topic=topic_name, ...))
+      except messaging.UnregisteredError:
+          # Log error or perform cleanup if target was a specific token
+          pass
+      except Exception as e:
+          log_error(e)
+  ```
+
 ### Part A: Manual Real-Time Pings
 *Goal: Allow Admin/Teachers to ping a whole class or a specific user.*
 
@@ -85,7 +137,7 @@
 
 * **Component:** **Separate Python Process** (e.g., `scheduler.py`).
 * **Deployment:** Runs alongside the main FastAPI app (e.g., in a separate Docker container or Supervisor process).
-* **Mechanism:** Infinite `while True` loop with `asyncio.sleep(60)`.
+* **Mechanism:** Infinite `while True` loop that runs every minute (for example, `asyncio.sleep(60)`).
 * **Logic:**
     1.  Calculate `target_time = NOW() + 10 mins`.
     2.  Query DB: `SELECT uuid, name FROM slots WHERE start_time = target_time`.
@@ -107,11 +159,22 @@
     3.  **Scenario 2: Meeting Ended**
         * Check Payload: Is event `meeting.ended`?
         * **Action (BackgroundTask):** Send "Class Finished" notification to topic `tuition_{uuid}`.
-        * **Data Payload:** `{ "action": "rate_class", "tuition_id": "{uuid}" }`
+        * **Data Payload:** `{ "action": "<sth>", "tuition_id": "{uuid}" }`
 
 ---
 
-## 5. Phase 4: Session Cleanup (Logout)
+## 5. Phase 4: Maintenance (The Reaper)
+*Goal: Clean up "Zombie Tokens" (Lost phones, uninstalled apps) to maintain DB hygiene.*
+
+* **Component:** Add a function to `scheduler.py`.
+* **Frequency:** Run once every 24 hours.
+* **Logic:**
+    * Execute a database query to delete tokens that have not performed a Phase 1 "Check In" recently.
+    * **Condition:** `last_updated < NOW() - INTERVAL '6 months'`.
+
+---
+
+## 6. Phase 5: Session Cleanup (Logout)
 *Goal: Stop notifications when a user signs out of a specific device.*
 
 * **Frontend:**
@@ -121,7 +184,7 @@
     * **DB Action:** Delete the row matching `{ token: ... }` from `user_devices`.
     * **Async Action (BackgroundTask):**
         * Call `FCM.unsubscribe_from_topic(token, f"user_{user_uuid}")`.
-        * *(Optional but Recommended):* Loop through their active tuitions and unsubscribe from `tuition_{uuid}` as well.
+        * Loop through their active tuitions and unsubscribe from `tuition_{uuid}` as well.
 * **Result:** This specific device stops ringing. If the user is logged in on an iPad (different token), the iPad continues to work.
 
 ---
