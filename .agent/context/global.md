@@ -82,3 +82,8 @@ These are the rules you **must** follow in every response. This is the most impo
 6.  **Do not assume api endpoints, refrence the open-api document:**
     * You can always find the exact endpoint definitions and input and output schemas in ./api_doc/effcient_tutor_backend.json
 
+7.  **Native-Compatible Coding:**
+    *   **Assets:** Always `import` images in JS files. Never use string paths.
+    *   **Safe Areas:** Use `pt-safe`, `pb-safe`, `pl-safe`, `pr-safe` for layout edges.
+    *   **Config:** Do not hardcode IPs. Use `import.meta.env` variables.
+
