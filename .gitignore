@@ -57,3 +57,6 @@ ios/App/Pods/
 # Xcode build outputs
 ios/DerivedData/
 
+
+# other stuff
+GoogleService-Info.plist
