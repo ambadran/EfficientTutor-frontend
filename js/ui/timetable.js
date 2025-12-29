@@ -1,5 +1,5 @@
 import { config, appState } from '../config.js';
-import { fetchTimetable } from '../api.js';
+import { fetchTimetable, fetchStudent } from '../api.js';
 import { showDialog, closeDialog } from './modals.js';
 
 // --- Helpers ---
@@ -346,6 +346,18 @@ export async function renderTimetablePage() {
     }
     
     try {
+        // Ensure we have the full student profile including availability
+        if (dataSource && !dataSource.availability_intervals) {
+            try {
+                const fullStudent = await fetchStudent(targetStudentId);
+                dataSource.availability_intervals = fullStudent.availability_intervals;
+                // Update availability cache immediately
+                dataSource.availability = mapApiIntervalsToUi(dataSource.availability_intervals);
+            } catch (e) {
+                console.warn("Could not fetch full student details for availability:", e);
+            }
+        }
+
         // Fetch timetable ONLY for the specific student
         // This avoids fetching all tuitions or generic parent data
         const timetableSlots = await fetchTimetable(targetStudentId);

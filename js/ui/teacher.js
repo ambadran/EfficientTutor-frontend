@@ -431,26 +431,81 @@ export async function showAddTuitionLogModal(logToCorrect = null) {
     const _renderScheduledPicker = async () => {
         showLoadingOverlay('Fetching tuitions...');
         try {
-            const tuitions = await fetchSchedulableTuitions();
+            const [timetableSlots, allTuitions] = await Promise.all([fetchTimetable(), fetchTuitions()]);
             hideStatusOverlay();
+
+            // Index all tuitions for fast lookup
+            const tuitionMap = new Map();
+            if (Array.isArray(allTuitions)) {
+                allTuitions.forEach(t => tuitionMap.set(t.id, t));
+            }
+
+            // Enriched Tuition List for Picker
+            const unifiedTuitions = [];
+            if (Array.isArray(timetableSlots)) {
+                timetableSlots.forEach(slot => {
+                    if (slot.slot_type === 'Tuition' && slot.object_uuid) {
+                        const tuition = tuitionMap.get(slot.object_uuid);
+                        if (tuition) {
+                            unifiedTuitions.push({
+                                start_time: slot.next_occurrence_start,
+                                end_time: slot.next_occurrence_end,
+                                display_name: slot.name || tuition.subject, // slot.name usually has "Tuition: Subj (Student)"
+                                tuition: tuition
+                            });
+                        }
+                    }
+                });
+            }
+
             const formatSchedulePreview = (timeStr) => {
                 if (!timeStr) return '';
                 try {
                     const date = new Date(timeStr);
+                    // Use UTC to match backend standard
                     return new Intl.DateTimeFormat('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC' }).format(date);
                 } catch (e) { return ''; }
             };
-            const itemsHTML = tuitions.map(t => {
-                const schedulePreview = formatSchedulePreview(t.scheduled_start_time);
-                return `<li class="p-3 hover:bg-gray-700 rounded-md cursor-pointer scheduled-item" data-tuition-id="${t.id}">${t.subject} - ${(t.student_names || []).join(', ')} ${schedulePreview ? `<span class="text-gray-400">- ${schedulePreview}</span>` : ''}</li>`;
+
+            const itemsHTML = unifiedTuitions.map((item, index) => {
+                const schedulePreview = formatSchedulePreview(item.start_time);
+                // Extract student names from tuition charges if slot name is generic
+                const studentNames = item.tuition.charges.map(c => `${c.student.first_name}`).join(', ');
+                const subject = item.tuition.subject;
+                
+                return `<li class="p-3 hover:bg-gray-700 rounded-md cursor-pointer scheduled-item border-b border-gray-700 last:border-0" data-index="${index}">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="font-semibold text-white">${subject} - ${studentNames}</p>
+                            <p class="text-xs text-gray-400">${item.tuition.educational_system} • Grade ${item.tuition.grade}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm text-indigo-300 font-medium">${schedulePreview}</p>
+                        </div>
+                    </div>
+                </li>`;
             }).join('');
-            const body = `<div><h3 class="font-semibold mb-2">Select a Scheduled Tuition</h3><ul class="space-y-1 max-h-60 overflow-y-auto">${itemsHTML}</ul></div>`;
+
+            const body = `<div><h3 class="font-semibold mb-4 text-gray-300">Select a Scheduled Tuition</h3><ul class="space-y-1 max-h-80 overflow-y-auto bg-gray-800 rounded-lg border border-gray-700">${itemsHTML || '<li class="p-4 text-center text-gray-500">No scheduled tuitions found.</li>'}</ul></div>`;
+            
             showModal('Add From Schedule', body, '', (modal) => {
                 modal.querySelectorAll('.scheduled-item').forEach(item => {
                     item.addEventListener('click', () => {
-                        const selectedTuition = tuitions.find(t => t.id === item.dataset.tuitionId);
-                        const studentNamesFromCharges = (selectedTuition.charges || []).map(c => c.student_name);
-                        logData = { log_type: 'scheduled', tuition_id: selectedTuition.id, subject: selectedTuition.subject, student_names: studentNamesFromCharges, scheduled_start_time: selectedTuition.scheduled_start_time, scheduled_end_time: selectedTuition.scheduled_end_time };
+                        const index = parseInt(item.dataset.index);
+                        const selectedItem = unifiedTuitions[index];
+                        const selectedTuition = selectedItem.tuition;
+                        
+                        // Extract student names correctly from the charges object structure
+                        const studentNamesFromCharges = (selectedTuition.charges || []).map(c => `${c.student.first_name} ${c.student.last_name}`);
+                        
+                        logData = { 
+                            log_type: 'scheduled', 
+                            tuition_id: selectedTuition.id, 
+                            subject: selectedTuition.subject, 
+                            student_names: studentNamesFromCharges, 
+                            scheduled_start_time: selectedItem.start_time, 
+                            scheduled_end_time: selectedItem.end_time 
+                        };
                         _renderFinalStep();
                     });
                 });
