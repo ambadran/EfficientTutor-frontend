@@ -2940,6 +2940,325 @@
           }
         }
       }
+    },
+    "/notify/register": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Register a new device token",
+        "description": "Registers a new device token for the user.",
+        "operationId": "register_device_notify_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserDeviceWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDeviceRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/notify/unregister": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Unregister a device token",
+        "description": "Unregisters a device.",
+        "operationId": "unregister_device_notify_unregister_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserDeviceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/notify/soft_sync": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Perform a soft sync for a device",
+        "description": "Performs a soft sync.",
+        "operationId": "soft_sync_notify_soft_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserDeviceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/notify/soft_sync_all": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Perform a soft sync for all devices of a user",
+        "description": "Performs a soft sync for all devices.",
+        "operationId": "soft_sync_all_notify_soft_sync_all_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserDeviceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/notify/force_sync": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Perform a force sync for a device",
+        "description": "Performs a force sync.",
+        "operationId": "force_sync_notify_force_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserDeviceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/notify/force_sync_all": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Perform a force sync for all devices of a user",
+        "description": "Performs a force sync for all devices.",
+        "operationId": "force_sync_all_notify_force_sync_all_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserDeviceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/notify/ping_user": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Send a manual ping to a user",
+        "description": "Sends a ping notification to a user.",
+        "operationId": "ping_user_notify_ping_user_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationDetails"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Ping User Notify Ping User Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -3457,13 +3776,18 @@
           "total_lessons_given_this_month": {
             "type": "integer",
             "title": "Total Lessons Given This Month"
+          },
+          "unpaid_lessons_count": {
+            "type": "integer",
+            "title": "Unpaid Lessons Count"
           }
         },
         "type": "object",
         "required": [
           "total_owed_to_teacher",
           "total_credit_held",
-          "total_lessons_given_this_month"
+          "total_lessons_given_this_month",
+          "unpaid_lessons_count"
         ],
         "title": "FinancialSummaryForTeacher"
       },
@@ -3480,13 +3804,18 @@
           "total_lessons_given_this_month": {
             "type": "integer",
             "title": "Total Lessons Given This Month"
+          },
+          "unpaid_lessons_count": {
+            "type": "integer",
+            "title": "Unpaid Lessons Count"
           }
         },
         "type": "object",
         "required": [
           "total_owed_to_teacher",
           "total_credit_held",
-          "total_lessons_given_this_month"
+          "total_lessons_given_this_month",
+          "unpaid_lessons_count"
         ],
         "title": "FinancialSummaryForTeacher"
       },
@@ -3918,6 +4247,59 @@
         "title": "NoteUpdate",
         "description": "NEW: Pydantic model for validating the JSON payload when UPDATING a note.\nAll fields are optional to allow for partial updates (PATCH)."
       },
+      "NotificationDetails": {
+        "properties": {
+          "target_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target User Id"
+          },
+          "tuition_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tuition Id"
+          },
+          "custom_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Title"
+          },
+          "custom_body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Body"
+          }
+        },
+        "type": "object",
+        "title": "NotificationDetails",
+        "description": "Unified input schema for notification trigger endpoints.\nContains optional fields to target specific entities and override content."
+      },
       "PaidStatus": {
         "type": "string",
         "enum": [
@@ -4206,6 +4588,15 @@
         ],
         "title": "PaymentLogRead",
         "description": "The API model for a payment log."
+      },
+      "PlatformTypeEnum": {
+        "type": "string",
+        "enum": [
+          "IOS",
+          "ANDROID",
+          "WEB"
+        ],
+        "title": "PlatformTypeEnum"
       },
       "ScheduledLogInput": {
         "properties": {
@@ -4998,6 +5389,12 @@
             "format": "uuid",
             "title": "Id"
           },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id",
+            "description": "The ID of the user this slot belongs to (e.g. the student)."
+          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -5052,6 +5449,7 @@
         "type": "object",
         "required": [
           "id",
+          "user_id",
           "name",
           "slot_type",
           "day_of_week",
@@ -5270,6 +5668,10 @@
             "type": "array",
             "title": "Attendee Names"
           },
+          "teacher_name": {
+            "type": "string",
+            "title": "Teacher Name"
+          },
           "earliest_log_date": {
             "type": "string",
             "format": "date-time",
@@ -5289,6 +5691,7 @@
           "paid_status",
           "cost",
           "attendee_names",
+          "teacher_name",
           "earliest_log_date"
         ],
         "title": "TuitionLogReadForParent",
@@ -5378,6 +5781,10 @@
             "type": "array",
             "title": "Attendee Names"
           },
+          "teacher_name": {
+            "type": "string",
+            "title": "Teacher Name"
+          },
           "duration": {
             "type": "string",
             "title": "Duration",
@@ -5402,6 +5809,7 @@
           "paid_status",
           "cost",
           "attendee_names",
+          "teacher_name",
           "duration",
           "week_number"
         ],
@@ -6109,6 +6517,97 @@
         "type": "object",
         "title": "TuitionUpdate",
         "description": "The API model for updating a tuition's editable fields.\nAll fields are optional."
+      },
+      "UserDeviceRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/PlatformTypeEnum"
+          },
+          "last_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "token",
+          "platform",
+          "last_updated"
+        ],
+        "title": "UserDeviceRead",
+        "description": "Output model for user device details."
+      },
+      "UserDeviceUpdate": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id",
+            "description": "The UUID of the user who owns this device."
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token",
+            "description": "The FCM registration token. Required for single-device operations."
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "title": "UserDeviceUpdate",
+        "description": "Input model for updating/syncing/unregistering devices.\n- user_id: Target user.\n- token: Specific device token. Optional if performing bulk operations (sync_all)."
+      },
+      "UserDeviceWrite": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id",
+            "description": "The UUID of the user who owns this device."
+          },
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "The FCM registration token for the device."
+          },
+          "platform": {
+            "$ref": "#/components/schemas/PlatformTypeEnum",
+            "description": "The platform of the device (IOS, ANDROID, WEB)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "token",
+          "platform"
+        ],
+        "title": "UserDeviceWrite",
+        "description": "Input model for registering a device token.\nIncludes the target user_id who owns this device."
       },
       "UserRead": {
         "properties": {
