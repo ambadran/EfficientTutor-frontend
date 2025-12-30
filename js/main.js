@@ -11,9 +11,10 @@ import { renderTeacherTuitionLogsPage, handleVoidLog, showChargesDetail, showAdd
 import { renderNotesList, showCreateNoteModal, showUpdateNoteModal } from './ui/notes.js';
 import { renderStudentProfile, handleSaveStudentDetails, handleCreateStudent, showAddSubjectModal, handleRemoveSubject, handleProfileTimetableAction, updateProfileTimetable } from './ui/profile.js';
 import { renderTimetableComponent, wizardTimetableHandlers } from './ui/timetable.js';
+import { showPingModal } from './ui/pings.js';
+import { initializeNotifications } from './notifications.js';
 
 import { App } from '@capacitor/app';
-import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 
 // --- STATE FOR WIZARD ---
@@ -659,6 +660,39 @@ document.body.addEventListener('click', (e) => {
         });
     }
 
+    // --- Ping Logic ---
+    const pingBtn = closest('.ping-btn');
+    if (pingBtn) {
+        const tuitionId = pingBtn.dataset.tuitionId;
+        const startTime = pingBtn.dataset.start;
+        const endTime = pingBtn.dataset.end;
+        
+        // Find the full tuition object from our cache (teacher or student/parent context)
+        // We use the unified tuition list if available, or fetch/find it.
+        // For simplicity, we iterate known lists in appState.
+        
+        // Try Teacher Schedule Cache first
+        let tuition = (appState.teacherScheduledTuitions || []).find(item => item.tuition.id === tuitionId)?.tuition;
+        
+        // If not found (e.g. Parent/Student view doesn't populate teacherScheduledTuitions the same way?)
+        // In renderTuitionsPage, we construct 'unifiedTuitions'. We should probably cache that for all roles if we want easy access.
+        // Let's assume appState.teacherScheduledTuitions IS that cache for now (renaming it might be better later).
+        
+        if (!tuition) {
+            // Fallback: If not found in cache, we might need to fetch or check other lists.
+            // However, since we are ON the page that rendered it, the cache should be there.
+            // Note: renderTuitionsPage saves to appState.teacherScheduledTuitions regardless of role.
+             tuition = (appState.teacherScheduledTuitions || []).find(item => item.tuition.id === tuitionId)?.tuition;
+        }
+
+        if (tuition) {
+            showPingModal(tuition, { start_time: startTime, end_time: endTime });
+        } else {
+            console.error("Tuition object not found in cache for ID:", tuitionId);
+            showStatusMessage('error', 'Could not load tuition details.');
+        }
+    }
+
     // --- Notes Page ---
     if (closest('#add-new-note-btn')) { showCreateNoteModal(); }
     
@@ -878,25 +912,7 @@ async function initialize() {
         hideStatusOverlay();
         await checkAuthState(); // Check if already logged in via token
 
-        if (Capacitor.isNativePlatform()) {
-            try {
-                const result = await PushNotifications.requestPermissions();
-                if (result.receive === 'granted') {
-                    await PushNotifications.register();
-                }
-                
-                PushNotifications.addListener('registration', (token) => {
-                    console.log('Push Registration Token:', token.value);
-                    // TODO: Send token to backend
-                });
-
-                PushNotifications.addListener('pushNotificationReceived', (notification) => {
-                     showStatusMessage('info', notification.title || 'New Notification');
-                });
-            } catch (e) {
-                console.warn('Push notification setup failed:', e);
-            }
-        }
+        await initializeNotifications();
     } catch (error) {
         console.error("Initialization Error:", error);
         hideStatusOverlay();

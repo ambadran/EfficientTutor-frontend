@@ -64,7 +64,23 @@ To understand the commands, you must understand the tools.
 
 ---
 
-## 3. Command Reference & FAQ
+## 🔄 Development Sync Workflow
+
+### Standard Sync (Web Changes)
+Use this when you modify JavaScript, CSS, or HTML files.
+```bash
+npm run build:mobile
+```
+*Logic: Runs `vite build` + `npx cap sync`.*
+
+### Native Dependency Update (Podfile/Gradle Changes)
+Use this when you add new plugins or modify native files like `Podfile` or `build.gradle`.
+```bash
+npx cap update ios
+```
+*Note: This downloads new libraries (via CocoaPods) and links them to the native project. Run this if you see "Module not found" errors in Xcode.*
+
+## 📱 Build & Run Commands
 
 ### Quick Reference Table
 

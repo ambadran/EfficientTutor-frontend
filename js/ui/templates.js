@@ -2,6 +2,7 @@ import { appState, config } from '../config.js';
 import { fetchNotes, fetchFinancialSummary, fetchTuitionLogs, fetchTuitions, fetchTimetable, fetchTeacher } from '../api.js';
 import { showModal, closeModal , showLoadingOverlay, hideStatusOverlay} from './modals.js';
 import { renderPage } from './navigation.js';
+import { showPingModal } from './pings.js';
 import logoUrl from '../../assets/EfficientTutor_logo.png';
 
 // --- Helper: Render Parent Log - Mobile Card ---
@@ -716,7 +717,8 @@ function renderTuitionCard(item, role) {
                     : `<p class="text-gray-500 text-sm">No meeting link assigned.</p>`
                 }
                 <div class="flex items-center space-x-2 mt-3">
-                     <button title="Set Link" class="edit-meeting-link-btn w-full p-2 text-sm bg-gray-600 hover:bg-gray-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-edit"></i> ${hasLink ? 'Edit' : 'Set'} Link</button>
+                     <button title="Set Link" class="edit-meeting-link-btn flex-grow p-2 text-sm bg-gray-600 hover:bg-gray-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-edit"></i> Link</button>
+                     <button title="Ping" class="ping-btn flex-grow p-2 text-sm bg-yellow-600 hover:bg-yellow-500 rounded-md" data-tuition-id="${tuition.id}" data-start="${start_time || ''}" data-end="${end_time || ''}"><i class="fas fa-bell"></i> Ping</button>
                 </div>
             </div>
         `;
@@ -727,23 +729,23 @@ function renderTuitionCard(item, role) {
                 <p class="text-2xl font-bold text-indigo-300">${tuition.charge} ${currency}</p>
             </div>
         `;
-        if (hasLink) {
-            actionsHTML = `
-                <div class="self-center">
-                    <button class="view-meeting-link-btn w-full p-2 text-sm bg-blue-600 hover:bg-blue-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-external-link-alt mr-2"></i>View Link</button>
-                </div>
-            `;
-        }
+        actionsHTML = `
+            <div class="self-center space-y-2">
+                 ${hasLink ? `<button class="view-meeting-link-btn w-full p-2 text-sm bg-blue-600 hover:bg-blue-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-external-link-alt mr-2"></i>View Link</button>` : ''}
+                 <button class="ping-btn w-full p-2 text-sm bg-gray-600 hover:bg-gray-500 rounded-md" data-tuition-id="${tuition.id}" data-start="${start_time || ''}" data-end="${end_time || ''}"><i class="fas fa-bell mr-2"></i>Ping Teacher</button>
+            </div>
+        `;
     } else { // Student
         financialsHTML = `<div></div>`; // Keep middle column empty
-        if (hasLink) {
-            actionsHTML = `
-                <div class="flex flex-col space-y-2">
-                    <button class="view-meeting-link-btn w-full p-2 text-sm bg-blue-600 hover:bg-blue-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-external-link-alt mr-2"></i>View Details</button>
-                    <a href="${tuition.meeting_link.meeting_link}" target="_blank" rel="noopener noreferrer" class="w-full text-center bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition duration-300">Join Meeting</a>
+        actionsHTML = `
+            <div class="flex flex-col space-y-2">
+                ${hasLink ? `<a href="${tuition.meeting_link.meeting_link}" target="_blank" rel="noopener noreferrer" class="w-full text-center bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition duration-300">Join Meeting</a>` : ''}
+                <div class="flex space-x-2">
+                    <button class="view-meeting-link-btn flex-1 p-2 text-sm bg-blue-600 hover:bg-blue-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-info-circle"></i> Info</button>
+                    <button class="ping-btn flex-1 p-2 text-sm bg-yellow-600 hover:bg-yellow-500 rounded-md" data-tuition-id="${tuition.id}" data-start="${start_time || ''}" data-end="${end_time || ''}"><i class="fas fa-bell"></i> Ping</button>
                 </div>
-            `;
-        }
+            </div>
+        `;
     }
 
     return `

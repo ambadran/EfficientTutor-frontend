@@ -3,9 +3,8 @@ import { Capacitor } from '@capacitor/core';
 
 export const config = {
     // DETERMINISTIC BACKEND SELECTION:
-    // Uses VITE_API_URL from .env file if present (e.g. VITE_API_URL=http://192.168.1.7:8000)
-    // Otherwise falls back to the production URL.
-    backendUrl: import.meta.env.VITE_API_URL || 'https://personal-time-manager.onrender.com',
+    // Uses VITE_API_URL from .env file (e.g. VITE_API_URL=http://192.168.1.7:8000)
+    backendUrl: import.meta.env.VITE_API_URL,
     
     subjects: ['Math', 'Physics', 'Chemistry', 'Biology', 'IT'],
     // NEW: Enums for the notes feature, from the backend spec

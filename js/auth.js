@@ -3,6 +3,7 @@ import { loginUser, signupUser, fetchStudents, fetchCurrentUser } from './api.js
 import { showLoadingOverlay, hideStatusOverlay, showAuthFeedback, showStatusMessage } from './ui/modals.js';
 import { navigateTo } from './ui/navigation.js';
 import { renderSidebar, renderBottomNav } from './ui/templates.js';
+import { initializeNotifications, handleNotificationLogout, triggerSoftSync } from './notifications.js';
 
 // --- UPDATED: Split data loading based on role ---
 export async function loadInitialParentData() {
@@ -55,6 +56,10 @@ export async function checkAuthState() {
             } else if (userDetails.role === 'student') {
                 await loadInitialStudentData();
             }
+
+            // Initialize Notifications (Safe to call multiple times)
+            await initializeNotifications();
+            await triggerSoftSync();
 
             // Redirect all roles to Dashboard
             navigateTo('dashboard');
@@ -111,7 +116,9 @@ export async function handleSignup(email, password, firstName, lastName, role, s
 }
 
 // --- UPDATED: handleLogout clears token ---
-export function handleLogout() {
+export async function handleLogout() {
+    await handleNotificationLogout(); // Attempt to unregister device
+
     localStorage.removeItem('accessToken'); // Clear the token
     appState.currentUser = null;
     appState.students = [];

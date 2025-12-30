@@ -296,4 +296,43 @@ export const fetchTeachersBySpecialty = (subject, educationalSystem, grade) => {
     const query = new URLSearchParams(params).toString();
     return apiRequest(`/teachers/by_specialty?${query}`);
 };
+
+// --- Notifications ---
+export const registerDeviceToken = (userId, token, platform) => apiRequest('/notify/register', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, token, platform }) // Schema: UserDeviceWrite
+});
+
+export const unregisterDeviceToken = (userId, token) => apiRequest('/notify/unregister', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, token }) // Schema: UserDeviceUpdate
+});
+
+export const softSyncDevice = (userId, token) => apiRequest('/notify/soft_sync', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, token })
+});
+
+export const forceSyncDevice = (userId, token) => apiRequest('/notify/force_sync', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, token })
+});
+
+// For bulk operations where token might be null/omitted if the backend allows, 
+// or usually for these endpoints the schema allows token to be optional/null.
+export const softSyncAllDevices = (userId) => apiRequest('/notify/soft_sync_all', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, token: null })
+});
+
+export const forceSyncAllDevices = (userId) => apiRequest('/notify/force_sync_all', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, token: null })
+});
+
+export const pingUser = (notificationDetails) => apiRequest('/notify/ping_user', {
+    method: 'POST',
+    body: JSON.stringify(notificationDetails) // Schema: NotificationDetails
+});
+
 // --- Metadata (TODO: Replace with actual endpoints) ---
