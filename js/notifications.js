@@ -1,4 +1,4 @@
-import { PushNotifications } from '@capacitor/push-notifications';
+import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 import { Capacitor } from '@capacitor/core';
 import { appState } from './config.js';
 import { registerDeviceToken, unregisterDeviceToken, softSyncDevice } from './api.js';
@@ -8,14 +8,14 @@ import { showStatusMessage } from './ui/modals.js';
 let isInitialized = false;
 
 /**
- * Initializes the push notification listeners.
- * Should be called after the user is authenticated.
+ * Initializes the Firebase push notification system.
+ * Should be called after user authentication or at app launch.
  */
 export async function initializeNotifications() {
-    console.log('Notifications: initializeNotifications called. Role:', appState.currentUser?.role);
+    console.log('Notifications: initializeNotifications started.');
     
     if (isInitialized) {
-        console.log('Notifications: Already initialized.');
+        console.log('Notifications: Skip initialization - already initialized.');
         return;
     }
     
@@ -25,74 +25,73 @@ export async function initializeNotifications() {
     }
 
     try {
-        let permStatus = await PushNotifications.checkPermissions();
-        console.log('Notifications: Permission status:', permStatus.receive);
+        // 1. Check/Request Permissions
+        console.log('Notifications: Checking permissions...');
+        const permStatus = await FirebaseMessaging.checkPermissions();
+        console.log('Notifications: Current Permission status:', permStatus.receive);
 
         if (permStatus.receive === 'prompt') {
-            permStatus = await PushNotifications.requestPermissions();
-            console.log('Notifications: Requested permission. Result:', permStatus.receive);
+            console.log('Notifications: Requesting permissions...');
+            const reqStatus = await FirebaseMessaging.requestPermissions();
+            console.log('Notifications: Permission request result:', reqStatus.receive);
         }
 
-        if (permStatus.receive !== 'granted') {
-            console.warn('Notifications: Permission denied.');
-            return;
-        }
-
+        // 3. Register Listeners
+        console.log('Notifications: Registering listeners...');
         await registerListeners();
-        console.log('Notifications: Listeners registered. Calling PushNotifications.register()...');
-        await PushNotifications.register();
+
+        // 4. Get/Refresh FCM Token
+        console.log('Notifications: Calling getToken()...');
+        const { token } = await FirebaseMessaging.getToken();
         
+        if (token) {
+            console.log('Notifications: SUCCESS! Received FCM Token:', token);
+            localStorage.setItem('deviceToken', token);
+            
+            if (appState.currentUser) {
+                await syncTokenWithBackend(token);
+            }
+        } else {
+            console.warn('Notifications: getToken() returned null/empty.');
+        }
+
         isInitialized = true;
 
-        // Check for an existing token in storage to sync immediately
-        const savedToken = localStorage.getItem('deviceToken');
-        if (savedToken && appState.currentUser) {
-            console.log('Notifications: Found saved token in localStorage. Syncing...');
-            await syncTokenWithBackend(savedToken, true);
-        }
     } catch (e) {
-        console.error('Notifications: Initialization error:', e);
+        console.error('Notifications: CRITICAL Initialization error:', e);
+        // This will now catch exactly where the code breaks.
     }
 }
 
 async function registerListeners() {
-    // 1. Registration (Getting the Token)
-    PushNotifications.addListener('registration', async (token) => {
-        console.log('Notifications: SUCCESS! Received Token:', token.value);
-        localStorage.setItem('deviceToken', token.value);
-        
+    // Listener for when a token is refreshed (rare but happens)
+    await FirebaseMessaging.addListener('tokenReceived', async (result) => {
+        console.log('Notifications: Token Refreshed Event:', result.token);
+        localStorage.setItem('deviceToken', result.token);
         if (appState.currentUser) {
-            await syncTokenWithBackend(token.value);
-        } else {
-            console.log('Notifications: Token received but no user logged in yet. Saved to storage.');
+            await syncTokenWithBackend(result.token);
         }
     });
 
-    PushNotifications.addListener('registrationError', (error) => {
-        console.error('Notifications: NATIVE REGISTRATION ERROR:', error);
-        // This often happens if "Push Notifications" capability is missing in Xcode
-    });
-
-    // 2. Received (Foreground)
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
-        console.log('Notifications: Received in foreground:', notification);
-        const title = notification.title || 'New Notification';
-        const body = notification.body || '';
+    // Listener for when a notification arrives while app is in FOREGROUND
+    await FirebaseMessaging.addListener('notificationReceived', (result) => {
+        console.log('Notifications: Foreground message received:', result.notification);
+        const title = result.notification.title || 'New Notification';
+        const body = result.notification.body || '';
         showStatusMessage('info', `${title}: ${body}`);
     });
 
-    // 3. Action Performed (Tapped)
-    PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-        console.log('Notifications: Action Performed (Tapped):', notification);
-        const data = notification.notification.data;
+    // Listener for when a notification is TAPPED (App in background or closed)
+    await FirebaseMessaging.addListener('notificationActionPerformed', (result) => {
+        console.log('Notifications: Tap Action detected:', result.notification);
+        const data = result.notification.data;
         handleNotificationAction(data);
     });
+    console.log('Notifications: All listeners attached.');
 }
 
 /**
- * Sends the token to the backend.
- * @param {string} token - The FCM token.
- * @param {boolean} isSoftSync - If true, calls soft_sync instead of register.
+ * Sends the FCM token to our FastAPI backend.
  */
 async function syncTokenWithBackend(token, isSoftSync = false) {
     if (!appState.currentUser) {
@@ -101,23 +100,22 @@ async function syncTokenWithBackend(token, isSoftSync = false) {
     }
 
     try {
-        const platform = Capacitor.getPlatform().toUpperCase(); // 'ios' -> 'IOS'
-        console.log(`Notifications: Calling backend ${isSoftSync ? 'soft_sync' : 'register'} for user ${appState.currentUser.id}...`);
+        const platform = Capacitor.getPlatform().toUpperCase(); // 'IOS' or 'ANDROID'
+        console.log(`Notifications: Syncing with backend (${isSoftSync ? 'soft_sync' : 'register'})...`);
         
         if (isSoftSync) {
             await softSyncDevice(appState.currentUser.id, token);
-            console.log('Notifications: Backend soft_sync successful.');
         } else {
             await registerDeviceToken(appState.currentUser.id, token, platform);
-            console.log('Notifications: Backend registration successful.');
         }
+        console.log('Notifications: Backend sync successful.');
     } catch (error) {
         console.error('Notifications: Backend sync FAILED:', error);
     }
 }
 
 /**
- * Force a soft sync of the current device token.
+ * Trigger a refresh of subscriptions.
  */
 export async function triggerSoftSync() {
     if (!Capacitor.isNativePlatform() || !appState.currentUser) return;
@@ -127,16 +125,18 @@ export async function triggerSoftSync() {
         console.log('Notifications: Manual triggerSoftSync starting...');
         await syncTokenWithBackend(token, true);
     } else {
-        console.log('Notifications: Manual triggerSoftSync skipped - no token in storage.');
+        console.log('Notifications: Manual triggerSoftSync fallback to initialize...');
+        await initializeNotifications();
     }
 }
 
 /**
- * Handles logic when a user taps a notification.
+ * Handles navigation logic based on notification payload.
  */
 function handleNotificationAction(data) {
     if (!data) return;
-    if (data.action === 'open_tuition') {
+    // Support both singular and plural forms for robustness
+    if (data.action === 'open_tuition' || data.action === 'open_tuitions') {
         navigateTo('tuitions');
     } else if (data.action === 'open_profile') {
         navigateTo('profile');
@@ -154,9 +154,10 @@ export async function handleNotificationLogout() {
     const token = localStorage.getItem('deviceToken');
     if (token && appState.currentUser) {
         try {
-            console.log('Notifications: Unregistering device on logout...');
+            console.log('Notifications: Cleaning up device on logout...');
             await unregisterDeviceToken(appState.currentUser.id, token);
-            console.log('Notifications: Device unregistered.');
+            await FirebaseMessaging.deleteToken();
+            console.log('Notifications: Device clean.');
         } catch (error) {
             console.error('Notifications: Unregister failed:', error);
         }

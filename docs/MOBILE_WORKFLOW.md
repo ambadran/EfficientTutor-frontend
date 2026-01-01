@@ -178,3 +178,6 @@ origins = [
 If you see a 200 OK in your backend logs but the app still says "Load Failed", it is almost always a missing origin in this list.
 
 
+The New Rule:
+- Changed JavaScript/HTML? -> Just hit Play in Xcode. I built new automated scripts that gets automatically run everytime I build the app from xcode, it runs the npm run build:mobile:dev(for Play button) or npm run build:mobile:prod (when Product->Archive)
+- Added a Plugin or getting "Framework errors"? -> Close Xcode, run npx cap sync, then re-open.

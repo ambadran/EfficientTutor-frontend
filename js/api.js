@@ -335,4 +335,11 @@ export const pingUser = (notificationDetails) => apiRequest('/notify/ping_user',
     body: JSON.stringify(notificationDetails) // Schema: NotificationDetails
 });
 
+// Placeholder for upcoming Tuition-level topics
+export const pingTuition = (tuitionId, includeParents, notificationDetails) => {
+    console.log(`API Placeholder: Pinging Tuition ${tuitionId}, Parents: ${includeParents}`, notificationDetails);
+    // TODO: Update when backend endpoints are ready (e.g. /notify/tuition/${tuitionId}?include_parents=${includeParents})
+    return Promise.resolve({ status: 'sent' });
+};
+
 // --- Metadata (TODO: Replace with actual endpoints) ---

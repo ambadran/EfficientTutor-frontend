@@ -59,4 +59,5 @@ ios/DerivedData/
 
 
 # other stuff
-GoogleService-Info.plist
+*.plist
+*.env.*

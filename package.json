@@ -8,7 +8,15 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build:mobile": "vite build && npx cap sync",
+
+    "// --- XCODE COMMANDS (Fast, No Pod Install) ---": "",
+    "build:mobile:dev": "vite build --mode development",
+    "build:mobile:prod": "vite build --mode production",
+
+    "// --- HUMAN COMMANDS (Convenient, Full Sync) ---": "",
+    "sync:mobile:dev": "npm run build:mobile:dev && npx cap sync",
+    "sync:mobile:prod": "npm run build:mobile:prod && npx cap sync",
+
     "open:android": "npx cap open android",
     "open:ios": "npx cap open ios"
   },
@@ -34,11 +42,13 @@
     "vite": "^7.3.0"
   },
   "dependencies": {
-    "@capacitor/android": "^7.4.4",
-    "@capacitor/app": "^7.1.0",
-    "@capacitor/cli": "^7.4.4",
-    "@capacitor/core": "^7.4.4",
-    "@capacitor/ios": "^7.4.4",
-    "@capacitor/push-notifications": "^7.0.3"
+    "@capacitor-firebase/messaging": "^8.0.1",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/push-notifications": "^8.0.0",
+    "firebase": "^12.7.0"
   }
 }

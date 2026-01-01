@@ -25,6 +25,10 @@ export const config = {
     timeSlotsStartHour: 5,
     pixelsPerMinute: 1,
     version: 'v0.2', // Current application version
+    notificationDefaults: {
+        title: "Lesson starting!",
+        body: "Please join the session now."
+    }
 };
 
 // --- GLOBAL STATE ---

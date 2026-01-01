@@ -68,16 +68,29 @@ export function closeDialog(dialog) {
 }
 
 const statusContainer = document.getElementById('status-overlay-container');
+
+// NEW: Allow dismissing status messages by clicking them
+statusContainer.addEventListener('click', () => hideStatusOverlay());
+
 export function showLoadingOverlay(message) {
     statusContainer.innerHTML = `<div id="status-overlay"><div class="loader"></div><p>${message}</p></div>`;
 }
 
 export function showStatusMessage(type, message) {
-    const icon = type === 'success' 
-        ? '<i class="fas fa-check-circle text-5xl text-green-500"></i>' 
-        : '<i class="fas fa-times-circle text-5xl text-red-500"></i>';
-    statusContainer.innerHTML = `<div id="status-overlay">${icon}<p>${message}</p></div>`;
-    setTimeout(hideStatusOverlay, 2000);
+    let icon = '';
+    let duration = 2000;
+
+    if (type === 'success') {
+        icon = '<i class="fas fa-check-circle text-5xl text-green-500"></i>';
+    } else if (type === 'info') {
+        icon = '<i class="fas fa-bell text-5xl text-blue-500 animate-bounce"></i>';
+        duration = 4000; // Notifications stay a bit longer
+    } else {
+        icon = '<i class="fas fa-times-circle text-5xl text-red-500"></i>';
+    }
+
+    statusContainer.innerHTML = `<div id="status-overlay" class="p-6 text-center">${icon}<p class="mt-4 text-lg font-medium">${message}</p></div>`;
+    setTimeout(hideStatusOverlay, duration);
 }
 
 export function hideStatusOverlay() {
