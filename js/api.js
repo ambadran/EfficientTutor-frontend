@@ -308,14 +308,14 @@ export const unregisterDeviceToken = (userId, token) => apiRequest('/notify/unre
     body: JSON.stringify({ user_id: userId, token }) // Schema: UserDeviceUpdate
 });
 
-export const softSyncDevice = (userId, token) => apiRequest('/notify/soft_sync', {
+export const softSyncDevice = (userId, token, platform) => apiRequest('/notify/soft_sync', {
     method: 'POST',
-    body: JSON.stringify({ user_id: userId, token })
+    body: JSON.stringify({ user_id: userId, token, platform })
 });
 
-export const forceSyncDevice = (userId, token) => apiRequest('/notify/force_sync', {
+export const forceSyncDevice = (userId, token, platform) => apiRequest('/notify/force_sync', {
     method: 'POST',
-    body: JSON.stringify({ user_id: userId, token })
+    body: JSON.stringify({ user_id: userId, token, platform })
 });
 
 // For bulk operations where token might be null/omitted if the backend allows, 

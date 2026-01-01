@@ -732,7 +732,7 @@ function renderTuitionCard(item, role) {
         actionsHTML = `
             <div class="self-center space-y-2">
                  ${hasLink ? `<button class="view-meeting-link-btn w-full p-2 text-sm bg-blue-600 hover:bg-blue-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-external-link-alt mr-2"></i>View Link</button>` : ''}
-                 <button class="ping-btn w-full p-2 text-sm bg-gray-600 hover:bg-gray-500 rounded-md" data-tuition-id="${tuition.id}" data-start="${start_time || ''}" data-end="${end_time || ''}"><i class="fas fa-bell mr-2"></i>Ping Teacher</button>
+                 <button title="Ping" class="ping-btn w-full p-2 text-sm bg-yellow-600 hover:bg-yellow-500 rounded-md" data-tuition-id="${tuition.id}" data-start="${start_time || ''}" data-end="${end_time || ''}"><i class="fas fa-bell mr-2"></i>Ping</button>
             </div>
         `;
     } else { // Student

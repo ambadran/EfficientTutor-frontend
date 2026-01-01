@@ -114,7 +114,12 @@ function renderTeacherPingUI(tuition) {
 // --- Parent UI ---
 
 function renderParentPingUI(tuition) {
-    const studentOptions = appState.students.map(s => `
+    // Only show students who are actually enrolled in THIS tuition
+    const enrolledStudents = appState.students.filter(s => 
+        (tuition.attendee_names || []).includes(`${s.first_name} ${s.last_name}`)
+    );
+
+    const studentOptions = enrolledStudents.map(s => `
         <label class="flex items-center justify-between p-3 bg-gray-800 border border-gray-700 rounded-lg cursor-pointer hover:bg-gray-750 transition-colors">
             <div class="flex items-center">
                 <i class="fas fa-child text-indigo-400 mr-3"></i>
@@ -136,10 +141,11 @@ function renderParentPingUI(tuition) {
                 <input type="radio" name="ping-target" value="user_${tuition.teacher_id}" checked class="w-4 h-4 text-indigo-600">
             </label>
 
+            ${enrolledStudents.length > 0 ? `
             <div class="space-y-2 mt-4">
-                <p class="text-xs text-gray-500 font-bold uppercase">Your Children</p>
+                <p class="text-xs text-gray-500 font-bold uppercase">Enrolled Students</p>
                 ${studentOptions}
-            </div>
+            </div>` : ''}
 
             ${renderMessageInputs()}
         </div>
@@ -236,12 +242,18 @@ function attachPingListeners(modal, tuition) {
 
         showLoadingOverlay('Sending Ping...');
         try {
+            // Get sender name and role for explicit attribution
+            const sender = appState.currentUser;
+            const rolePrefix = sender.role === 'teacher' ? 'Tutor' : (sender.role === 'parent' ? 'Parent' : 'Student');
+            const senderName = `${rolePrefix} ${sender.first_name}`;
+            const attributedMessage = `${senderName}: ${message}`;
+
             if (targetValue.startsWith('topic_')) {
                 const includeParents = targetValue === 'topic_all';
-                await pingTuition(tuition.id, includeParents, { custom_title: title, custom_body: message });
+                await pingTuition(tuition.id, includeParents, { custom_title: title, custom_body: attributedMessage });
             } else {
                 const userId = targetValue.replace('user_', '');
-                await pingUser({ target_user_id: userId, tuition_id: tuition.id, custom_title: title, custom_body: message });
+                await pingUser({ target_user_id: userId, tuition_id: tuition.id, custom_title: title, custom_body: attributedMessage });
             }
             closeModal();
             showStatusMessage('success', 'Ping delivered.');

@@ -104,7 +104,7 @@ async function syncTokenWithBackend(token, isSoftSync = false) {
         console.log(`Notifications: Syncing with backend (${isSoftSync ? 'soft_sync' : 'register'})...`);
         
         if (isSoftSync) {
-            await softSyncDevice(appState.currentUser.id, token);
+            await softSyncDevice(appState.currentUser.id, token, platform);
         } else {
             await registerDeviceToken(appState.currentUser.id, token, platform);
         }
