@@ -202,6 +202,11 @@ export const createMeetingLink = (tuitionId, url, password, meetingId) => apiReq
     body: JSON.stringify(buildMeetingLinkPayload(url, password, meetingId))
 });
 
+export const updateTuition = (tuitionId, data) => apiRequest(`/tuitions/${tuitionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data) // Schema: TuitionUpdate
+});
+
 export const updateMeetingLink = (tuitionId, url, password, meetingId) => apiRequest(`/tuitions/${tuitionId}/meeting_link`, {
     method: 'PATCH',
     body: JSON.stringify(buildMeetingLinkPayload(url, password, meetingId))
@@ -330,16 +335,14 @@ export const forceSyncAllDevices = (userId) => apiRequest('/notify/force_sync_al
     body: JSON.stringify({ user_id: userId, token: null })
 });
 
-export const pingUser = (notificationDetails) => apiRequest('/notify/ping_user', {
+export const pingTuitionStudents = (notificationDetails) => apiRequest('/notify/ping_tuition_students', {
     method: 'POST',
     body: JSON.stringify(notificationDetails) // Schema: NotificationDetails
 });
 
-// Placeholder for upcoming Tuition-level topics
-export const pingTuition = (tuitionId, includeParents, notificationDetails) => {
-    console.log(`API Placeholder: Pinging Tuition ${tuitionId}, Parents: ${includeParents}`, notificationDetails);
-    // TODO: Update when backend endpoints are ready (e.g. /notify/tuition/${tuitionId}?include_parents=${includeParents})
-    return Promise.resolve({ status: 'sent' });
-};
+export const pingTuitionStudentsParents = (notificationDetails) => apiRequest('/notify/ping_tuition_students_parents', {
+    method: 'POST',
+    body: JSON.stringify(notificationDetails) // Schema: NotificationDetails
+});
 
 // --- Metadata (TODO: Replace with actual endpoints) ---

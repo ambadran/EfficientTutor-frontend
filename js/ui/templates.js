@@ -711,6 +711,9 @@ function renderTuitionCard(item, role) {
         `;
         actionsHTML = `
             <div>
+                <button class="edit-tuition-btn w-full mb-3 p-2 text-sm bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-md transition-colors" data-tuition-id="${tuition.id}">
+                    <i class="fas fa-sliders-h mr-2"></i>Edit Details
+                </button>
                 <h4 class="text-sm font-semibold text-gray-400 mb-2">Meeting Link</h4>
                 ${hasLink
                     ? `<button class="view-meeting-link-btn w-full p-2 text-sm bg-blue-600 hover:bg-blue-500 rounded-md" data-tuition-id="${tuition.id}"><i class="fas fa-external-link-alt mr-2"></i>View Link</button>`
@@ -794,6 +797,11 @@ export async function renderTuitionsPage() {
         if (Array.isArray(timetableSlots)) {
             timetableSlots.forEach(slot => {
                 if (slot.slot_type === 'Tuition' && slot.object_uuid) {
+                    // Prevent duplicates: if we already added this tuition (e.g. from another student sibling), skip it
+                    if (scheduledTuitionIds.has(slot.object_uuid)) {
+                        return;
+                    }
+
                     const tuition = tuitionMap.get(slot.object_uuid);
                     if (tuition) {
                         unifiedTuitions.push({

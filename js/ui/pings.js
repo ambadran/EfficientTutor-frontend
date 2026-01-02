@@ -1,5 +1,5 @@
 import { appState, config } from '../config.js';
-import { pingUser, pingTuition } from '../api.js';
+import { pingUser, pingTuitionStudents, pingTuitionStudentsParents } from '../api.js';
 import { showModal, closeModal, showLoadingOverlay, hideStatusOverlay, showStatusMessage } from './modals.js';
 
 /**
@@ -249,8 +249,17 @@ function attachPingListeners(modal, tuition) {
             const attributedMessage = `${senderName}: ${message}`;
 
             if (targetValue.startsWith('topic_')) {
-                const includeParents = targetValue === 'topic_all';
-                await pingTuition(tuition.id, includeParents, { custom_title: title, custom_body: attributedMessage });
+                const payload = {
+                    tuition_id: tuition.id,
+                    custom_title: title,
+                    custom_body: attributedMessage
+                };
+
+                if (targetValue === 'topic_all') {
+                    await pingTuitionStudentsParents(payload);
+                } else {
+                    await pingTuitionStudents(payload);
+                }
             } else {
                 const userId = targetValue.replace('user_', '');
                 await pingUser({ target_user_id: userId, tuition_id: tuition.id, custom_title: title, custom_body: attributedMessage });

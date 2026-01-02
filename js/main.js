@@ -7,7 +7,7 @@ import { toggleSidebar, displayGlobalError, initializeLayout } from './ui/layout
 import { showStudentRegistrationWizard } from './ui/studentWizard.js';
 import { confirmDeleteStudent } from './ui/templates.js';
 import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback, showModal, showConfirmDialog } from './ui/modals.js';
-import { renderTeacherTuitionLogsPage, handleVoidLog, showChargesDetail, showAddTuitionLogModal, renderTeacherPaymentLogsPage, showAddPaymentLogModal, handleVoidPaymentLog, showMeetingLinkModal, showMeetingLinkDetailsModal, handleTuitionFilterTypeChange, handleTuitionFilterEntityChange, handlePaymentFilterTypeChange, handlePaymentFilterEntityChange } from './ui/teacher.js';
+import { renderTeacherTuitionLogsPage, handleVoidLog, showChargesDetail, showAddTuitionLogModal, renderTeacherPaymentLogsPage, showAddPaymentLogModal, handleVoidPaymentLog, showMeetingLinkModal, showMeetingLinkDetailsModal, handleTuitionFilterTypeChange, handleTuitionFilterEntityChange, handlePaymentFilterTypeChange, handlePaymentFilterEntityChange, showEditTuitionModal } from './ui/teacher.js';
 import { renderNotesList, showCreateNoteModal, showUpdateNoteModal } from './ui/notes.js';
 import { renderStudentProfile, handleSaveStudentDetails, handleCreateStudent, showAddSubjectModal, handleRemoveSubject, handleProfileTimetableAction, updateProfileTimetable } from './ui/profile.js';
 import { renderTimetableComponent, wizardTimetableHandlers } from './ui/timetable.js';
@@ -638,6 +638,15 @@ document.body.addEventListener('click', (e) => {
         const scheduledItem = (appState.teacherScheduledTuitions || []).find(item => item.tuition.id === tuitionId);
         if (scheduledItem) {
             showMeetingLinkModal(scheduledItem.tuition);
+        }
+    }
+
+    const editTuitionBtn = closest('.edit-tuition-btn');
+    if (editTuitionBtn) {
+        const tuitionId = editTuitionBtn.dataset.tuitionId;
+        const scheduledItem = (appState.teacherScheduledTuitions || []).find(item => item.tuition.id === tuitionId);
+        if (scheduledItem) {
+            showEditTuitionModal(scheduledItem.tuition);
         }
     }
 

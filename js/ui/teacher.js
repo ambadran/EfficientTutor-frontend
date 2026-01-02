@@ -19,7 +19,8 @@ import {
     fetchTeacherSpecialties,
     fetchTimetable,
     fetchTeacher,
-    fetchStudent
+    fetchStudent,
+    updateTuition
 } from '../api.js';
 import { showModal, closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay } from './modals.js';
 import { renderPage } from './navigation.js';
@@ -993,6 +994,106 @@ export function showMeetingLinkDetailsModal(tuition) {
             <button id="modal-close-btn" class="p-2 px-4 text-sm bg-gray-600 hover:bg-gray-500 rounded-md">Close</button>
         </div>`;
     showModal('Meeting Link Details', body, footer);
+}
+
+export function showEditTuitionModal(tuition) {
+    const charges = tuition.charges || [];
+    
+    // Generate Charge Inputs
+    const chargesHTML = charges.map((charge, index) => `
+        <div class="flex justify-between items-center bg-gray-700 p-2 rounded border border-gray-600">
+            <span class="text-sm font-medium text-gray-200">${charge.student.first_name} ${charge.student.last_name}</span>
+            <div class="flex items-center space-x-2">
+                <label class="text-xs text-gray-400">Cost:</label>
+                <input type="number" 
+                       class="charge-cost-input w-24 p-1 bg-gray-800 rounded border border-gray-500 text-sm text-right" 
+                       data-student-id="${charge.student.id}" 
+                       value="${charge.cost}" 
+                       step="0.5" 
+                       min="0">
+                <span class="text-xs text-gray-400">kwd</span>
+            </div>
+        </div>
+    `).join('');
+
+    const body = `
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm text-gray-400">Min Duration (mins)</label>
+                    <input type="number" id="edit-tuition-min" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" 
+                           value="${tuition.min_duration_minutes || ''}" placeholder="Optional">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Max Duration (mins)</label>
+                    <input type="number" id="edit-tuition-max" class="w-full mt-1 p-2 bg-gray-700 rounded-md border border-gray-600" 
+                           value="${tuition.max_duration_minutes || ''}" placeholder="Optional">
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-700 pt-3">
+                <h4 class="text-sm font-semibold text-gray-300 mb-2">Student Charges</h4>
+                <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    ${chargesHTML.length > 0 ? chargesHTML : '<p class="text-xs text-gray-500">No students enrolled yet.</p>'}
+                </div>
+            </div>
+        </div>`;
+
+    const footer = `
+        <div class="flex justify-end space-x-4">
+            <button id="modal-close-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">Cancel</button>
+            <button id="save-tuition-details-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md">Save Changes</button>
+        </div>`;
+
+    showModal(`Edit Tuition - ${tuition.subject}`, body, footer, (modal) => {
+        modal.querySelector('#save-tuition-details-btn').addEventListener('click', async () => {
+            const minDurInput = modal.querySelector('#edit-tuition-min').value;
+            const maxDurInput = modal.querySelector('#edit-tuition-max').value;
+            
+            // Build Charges Update Array
+            const chargesUpdates = [];
+            const costInputs = modal.querySelectorAll('.charge-cost-input');
+            let isCostValid = true;
+
+            costInputs.forEach(input => {
+                const costVal = parseFloat(input.value);
+                if (isNaN(costVal) || costVal < 0) {
+                    isCostValid = false;
+                    input.classList.add('border-red-500');
+                } else {
+                    input.classList.remove('border-red-500');
+                    chargesUpdates.push({
+                        student_id: input.dataset.studentId,
+                        cost: costVal
+                    });
+                }
+            });
+
+            if (!isCostValid) {
+                showStatusMessage('error', 'Please enter valid positive numbers for all costs.');
+                return;
+            }
+
+            // Construct Payload
+            const payload = {
+                min_duration_minutes: minDurInput ? parseInt(minDurInput) : null,
+                max_duration_minutes: maxDurInput ? parseInt(maxDurInput) : null,
+                charges: chargesUpdates.length > 0 ? chargesUpdates : null
+            };
+
+            showLoadingOverlay('Updating Tuition...');
+            try {
+                await updateTuition(tuition.id, payload);
+                closeModal();
+                showStatusMessage('success', 'Tuition updated successfully.');
+                renderPage(); // Refresh to show new values
+            } catch (error) {
+                showStatusMessage('error', error.message);
+            } finally {
+                hideStatusOverlay();
+            }
+        });
+    });
 }
 // #endregion
 
