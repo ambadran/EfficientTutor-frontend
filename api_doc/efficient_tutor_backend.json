@@ -2989,13 +2989,13 @@
       }
     },
     "/notify/unregister": {
-      "post": {
+      "delete": {
         "tags": [
           "Notifications"
         ],
         "summary": "Unregister a device token",
         "description": "Unregisters a device.",
-        "operationId": "unregister_device_notify_unregister_post",
+        "operationId": "unregister_device_notify_unregister_delete",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3007,13 +3007,8 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -3238,6 +3233,100 @@
               "application/json": {
                 "schema": {
                   "title": "Response Ping User Notify Ping User Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/notify/ping_tuition_students": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Send a manual ping to all students in a tuition",
+        "description": "Sends a ping notification to all students in a tuition.",
+        "operationId": "ping_tuition_students_notify_ping_tuition_students_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationDetails"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Ping Tuition Students Notify Ping Tuition Students Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/notify/ping_tuition_students_parents": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Send a manual ping to all students AND parents in a tuition",
+        "description": "Sends a ping notification to all students AND parents in a tuition.",
+        "operationId": "ping_tuition_students_parents_notify_ping_tuition_students_parents_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationDetails"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Ping Tuition Students Parents Notify Ping Tuition Students Parents Post"
                 }
               }
             }
@@ -6573,6 +6662,17 @@
             ],
             "title": "Token",
             "description": "The FCM registration token. Required for single-device operations."
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlatformTypeEnum"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The platform of the device (IOS, ANDROID, WEB)."
           }
         },
         "type": "object",
@@ -6580,7 +6680,7 @@
           "user_id"
         ],
         "title": "UserDeviceUpdate",
-        "description": "Input model for updating/syncing/unregistering devices.\n- user_id: Target user.\n- token: Specific device token. Optional if performing bulk operations (sync_all)."
+        "description": "Input model for updating/syncing/unregistering devices.\n- user_id: Target user.\n- token: Specific device token. Optional if performing bulk operations (sync_all).\n- platform: Optional platform of the device (IOS, ANDROID, WEB)."
       },
       "UserDeviceWrite": {
         "properties": {
