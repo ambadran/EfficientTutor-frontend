@@ -175,6 +175,202 @@
         ]
       }
     },
+    "/users/": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get User by Email (Restricted)",
+        "description": "Restricted lookup of a user by email.",
+        "operationId": "get_user_by_email_users__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "email",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The email address of the user to look up.",
+              "title": "Email"
+            },
+            "description": "The email address of the user to look up."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{user_id}/deactivate": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Deactivate a user account",
+        "description": "Deactivates a user account.",
+        "operationId": "deactivate_user_users__user_id__deactivate_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The UUID of the user to deactivate.",
+              "title": "User Id"
+            },
+            "description": "The UUID of the user to deactivate."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{user_id}/activate": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Activate a user account",
+        "description": "Activates a user account.",
+        "operationId": "activate_user_users__user_id__activate_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The UUID of the user to activate.",
+              "title": "User Id"
+            },
+            "description": "The UUID of the user to activate."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{user_id}": {
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Delete a user account (Soft Delete)",
+        "description": "Deletes a user account.\n\n# TODO: This currently performs a 'soft delete' (deactivation) because implementing \n# a full hard delete is complex due to database relationships/constraints.\n# Future work should implement a proper delete service method that handles these dependencies.",
+        "operationId": "delete_user_users__user_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The UUID of the user to delete.",
+              "title": "User Id"
+            },
+            "description": "The UUID of the user to delete."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admins/": {
       "get": {
         "tags": [
@@ -918,8 +1114,10 @@
             "schema": {
               "type": "string",
               "format": "uuid",
+              "description": "The UUID of the student.",
               "title": "Student Id"
-            }
+            },
+            "description": "The UUID of the student."
           }
         ],
         "requestBody": {
@@ -956,13 +1154,13 @@
         }
       }
     },
-    "/students/{student_id}/subjects/{subject_id}": {
+    "/students/{student_id}/subjects/{student_subject_id}": {
       "delete": {
         "tags": [
           "Students"
         ],
         "summary": "Delete Student Subject",
-        "operationId": "delete_student_subject_students__student_id__subjects__subject_id__delete",
+        "operationId": "delete_student_subject_students__student_id__subjects__student_subject_id__delete",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -976,18 +1174,161 @@
             "schema": {
               "type": "string",
               "format": "uuid",
+              "description": "The UUID of the student.",
               "title": "Student Id"
-            }
+            },
+            "description": "The UUID of the student."
           },
           {
-            "name": "subject_id",
+            "name": "student_subject_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Subject Id"
+              "description": "The UUID of the student subject to delete.",
+              "title": "Student Subject Id"
+            },
+            "description": "The UUID of the student subject to delete."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
             }
+          }
+        }
+      }
+    },
+    "/students/{student_id}/subjects/{student_subject_id}/share/{target_student_id}": {
+      "post": {
+        "tags": [
+          "Students"
+        ],
+        "summary": "Add Subject Sharing",
+        "operationId": "add_subject_sharing_students__student_id__subjects__student_subject_id__share__target_student_id__post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The UUID of the student.",
+              "title": "Student Id"
+            },
+            "description": "The UUID of the student."
+          },
+          {
+            "name": "student_subject_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The UUID of the student subject.",
+              "title": "Student Subject Id"
+            },
+            "description": "The UUID of the student subject."
+          },
+          {
+            "name": "target_student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The UUID of the student to share with.",
+              "title": "Target Student Id"
+            },
+            "description": "The UUID of the student to share with."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentSubjectRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Students"
+        ],
+        "summary": "Remove Subject Sharing",
+        "operationId": "remove_subject_sharing_students__student_id__subjects__student_subject_id__share__target_student_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The UUID of the student.",
+              "title": "Student Id"
+            },
+            "description": "The UUID of the student."
+          },
+          {
+            "name": "student_subject_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The UUID of the student subject.",
+              "title": "Student Subject Id"
+            },
+            "description": "The UUID of the student subject."
+          },
+          {
+            "name": "target_student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The UUID of the student to stop sharing with.",
+              "title": "Target Student Id"
+            },
+            "description": "The UUID of the student to stop sharing with."
           }
         ],
         "responses": {
@@ -3405,6 +3746,10 @@
             "type": "boolean",
             "title": "Is First Sign In"
           },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
           "privileges": {
             "$ref": "#/components/schemas/AdminPrivilegeType"
           }
@@ -3416,6 +3761,7 @@
           "role",
           "timezone",
           "is_first_sign_in",
+          "is_active",
           "privileges"
         ],
         "title": "AdminRead",
@@ -4470,6 +4816,10 @@
             "type": "boolean",
             "title": "Is First Sign In"
           },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
           "currency": {
             "type": "string",
             "title": "Currency"
@@ -4482,6 +4832,7 @@
           "role",
           "timezone",
           "is_first_sign_in",
+          "is_active",
           "currency"
         ],
         "title": "ParentRead",
@@ -4852,6 +5203,10 @@
             "type": "boolean",
             "title": "Is First Sign In"
           },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
           "parent_id": {
             "type": "string",
             "format": "uuid",
@@ -4928,6 +5283,7 @@
           "role",
           "timezone",
           "is_first_sign_in",
+          "is_active",
           "parent_id",
           "cost",
           "status",
@@ -4962,10 +5318,8 @@
             "type": "integer",
             "title": "Lessons Per Week"
           },
-          "teacher_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Teacher Id"
+          "teacher": {
+            "$ref": "#/components/schemas/UserRead"
           },
           "educational_system": {
             "$ref": "#/components/schemas/EducationalSystemEnum"
@@ -4976,13 +5330,12 @@
             "minimum": 1,
             "title": "Grade"
           },
-          "shared_with_student_ids": {
+          "shared_with_student": {
             "items": {
-              "type": "string",
-              "format": "uuid"
+              "$ref": "#/components/schemas/UserRead"
             },
             "type": "array",
-            "title": "Shared With Student Ids"
+            "title": "Shared With Student"
           }
         },
         "type": "object",
@@ -4990,7 +5343,7 @@
           "id",
           "subject",
           "lessons_per_week",
-          "teacher_id",
+          "teacher",
           "educational_system",
           "grade"
         ],
@@ -5299,6 +5652,10 @@
             "type": "boolean",
             "title": "Is First Sign In"
           },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
           "currency": {
             "type": "string",
             "title": "Currency"
@@ -5325,6 +5682,7 @@
           "role",
           "timezone",
           "is_first_sign_in",
+          "is_active",
           "currency"
         ],
         "title": "TeacherRead",
@@ -6752,6 +7110,10 @@
           "is_first_sign_in": {
             "type": "boolean",
             "title": "Is First Sign In"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
           }
         },
         "type": "object",
@@ -6760,7 +7122,8 @@
           "email",
           "role",
           "timezone",
-          "is_first_sign_in"
+          "is_first_sign_in",
+          "is_active"
         ],
         "title": "UserRead",
         "description": "Base Pydantic model for reading user data.\nCorresponds to the db_models.Users ORM model."
