@@ -18,7 +18,12 @@ import {
     deleteStudentAvailability,
     addTeacherAvailability,
     updateTeacherAvailability,
-    deleteTeacherAvailability
+    deleteTeacherAvailability,
+    addStudentSubject,
+    deleteStudentSubject,
+    addSubjectSharing,
+    removeSubjectSharing,
+    fetchStudents
 } from '../api.js';
 import { showLoadingOverlay, hideStatusOverlay, showModal, showConfirmDialog, showStatusMessage, closeModal } from './modals.js';
 import { renderPage } from './navigation.js';
@@ -439,24 +444,24 @@ export async function renderStudentProfile(studentId, mode = 'view') {
     // Use temp state for subjects if editable
     const subjectsToRender = isEditable ? (tempStudentProfileData.student_subjects || []) : (student.student_subjects || []);
     
-    // Fetch Teacher Names for each subject
-    // Optimization: Avoid fetching if we already have teacher objects or if array is empty
-    const teacherPromises = subjectsToRender.map(s => {
-        if (s.teacher_id) {
-            return fetchTeacher(s.teacher_id).catch(() => ({ first_name: 'Unknown', last_name: 'Teacher' }));
-        }
-        // For newly added local subjects in Create mode, we might store the teacher object or just ID
-        // If we store object in temp state, we can use it directly.
-        // If s.teacherObject exists (we'll implement this in the modal), use it.
-        if (s.teacherObject) return Promise.resolve(s.teacherObject);
-        return Promise.resolve({ first_name: 'Pending', last_name: 'Save' });
-    });
-    
-    const teachers = await Promise.all(teacherPromises);
+    // Note: Backend now returns 'teacher' object and 'shared_with_students' list in StudentSubjectRead.
+    // No need to fetch teacher names manually.
 
     const subjectsList = subjectsToRender.map((sub, index) => {
-        const teacher = teachers[index];
-        const teacherName = `${teacher.first_name} ${teacher.last_name}`;
+        // Teacher Name Resolution
+        let teacherName = 'Pending Save';
+        if (sub.teacher) {
+            teacherName = `${sub.teacher.first_name} ${sub.teacher.last_name}`;
+        } else if (sub.teacherObject) {
+            // Fallback for local 'create' mode where we stored the object manually
+            teacherName = `${sub.teacherObject.first_name} ${sub.teacherObject.last_name}`;
+        }
+
+        // Shared Students Resolution
+        const sharedNames = (sub.shared_with_students || [])
+            .map(u => u.first_name)
+            .join(', ');
+
         return `
         <div class="bg-gray-700 p-4 rounded-md border border-gray-600 mb-3 flex justify-between items-start">
             <div>
@@ -464,8 +469,13 @@ export async function renderStudentProfile(studentId, mode = 'view') {
                 <p class="text-sm text-gray-300">${sub.educational_system} • Grade ${sub.grade}</p>
                 <p class="text-sm text-gray-400 mt-1"><i class="fas fa-chalkboard-teacher mr-1"></i> Teacher: <span class="font-semibold text-gray-200">${teacherName}</span></p>
                 <p class="text-sm text-gray-400">Lessons/Week: ${sub.lessons_per_week}</p>
+                ${sharedNames ? `<p class="text-xs text-indigo-300 mt-1"><i class="fas fa-users mr-1"></i> Shared with: ${sharedNames}</p>` : ''}
             </div>
-            ${isEditable ? `<button class="remove-subject-btn text-red-400 hover:text-red-300 p-2" data-student-id="${studentId || 'new'}" data-subject-index="${index}"><i class="fas fa-trash"></i></button>` : ''}
+            ${isEditable ? `
+            <div class="flex flex-col space-y-2 ml-2">
+                <button title="Share Subject" class="share-subject-btn text-blue-400 hover:text-blue-300 p-2" data-student-id="${studentId || 'new'}" data-subject-index="${index}"><i class="fas fa-share-alt"></i></button>
+                <button title="Remove Subject" class="remove-subject-btn text-red-400 hover:text-red-300 p-2" data-student-id="${studentId || 'new'}" data-subject-index="${index}" data-subject-id="${sub.id || ''}"><i class="fas fa-trash"></i></button>
+            </div>` : ''}
         </div>
     `}).join('');
 
@@ -832,6 +842,23 @@ export function showAddSubjectModal(studentId) {
         // Store found teachers to retrieve names later for local display
         let foundTeachers = [];
 
+        // UX Helper: Reset teacher selection if criteria changes
+        const resetTeacherSelection = () => {
+            if (!teacherContainer) return; // Safety check for Teachers (container doesn't exist)
+            
+            if (!teacherContainer.classList.contains('hidden')) {
+                teacherContainer.classList.add('hidden');
+                saveBtn.classList.add('hidden');
+                if (findBtn) findBtn.classList.remove('hidden');
+                teacherSelect.innerHTML = '';
+                foundTeachers = [];
+            }
+        };
+
+        modal.querySelector('#sub-subject').addEventListener('change', resetTeacherSelection);
+        modal.querySelector('#sub-system').addEventListener('change', resetTeacherSelection);
+        modal.querySelector('#sub-grade').addEventListener('input', resetTeacherSelection); // 'input' for immediate feedback on number fields
+
         if (findBtn) {
             findBtn.addEventListener('click', async () => {
                 const subject = modal.querySelector('#sub-subject').value;
@@ -907,11 +934,10 @@ export function showAddSubjectModal(studentId) {
                 document.getElementById('page-content').innerHTML = content;
 
             } else {
-                // API Save (Existing logic)
+                // API Save (New POST Endpoint)
                 showLoadingOverlay('Adding subject...');
                 try {
-                    const student = await fetchStudent(studentId);
-                    const newSubject = {
+                    const payload = {
                         subject: modal.querySelector('#sub-subject').value,
                         educational_system: modal.querySelector('#sub-system').value,
                         grade: parseInt(modal.querySelector('#sub-grade').value),
@@ -920,18 +946,17 @@ export function showAddSubjectModal(studentId) {
                         shared_with_student_ids: []
                     };
 
-                    const currentSubjects = student.student_subjects.map(s => ({
-                        subject: s.subject,
-                        educational_system: s.educational_system,
-                        grade: s.grade,
-                        teacher_id: s.teacher_id,
-                        lessons_per_week: s.lessons_per_week,
-                        shared_with_student_ids: s.shared_with_student_ids
-                    }));
-
-                    currentSubjects.push(newSubject);
-
-                    await updateStudent(studentId, { student_subjects: currentSubjects });
+                    const addedSubject = await addStudentSubject(studentId, payload);
+                    
+                    // Manually update the temp state if it exists, or we just reload.
+                    // But since we are in 'edit' mode, we usually have tempStudentProfileData.
+                    // We should update the source of truth if we want to avoid a full refetch, 
+                    // or just refetching logic inside renderStudentProfile handles it.
+                    // Let's force a refresh which fetches fresh data, ensuring consistency.
+                    // Or better, push to temp data to avoid fetch latency if we trust the return.
+                    
+                    // Note: renderStudentProfile re-fetches student data if we don't pass 'create'.
+                    // So simply calling renderStudentProfile(studentId, 'edit') is enough.
                     
                     closeModal();
                     showStatusMessage('success', 'Subject added.');
@@ -940,9 +965,9 @@ export function showAddSubjectModal(studentId) {
                     document.getElementById('page-content').innerHTML = content;
 
                 } catch (e) {
+                    // CRITICAL: Do NOT close modal on error
+                    hideStatusOverlay(); // Hide loader so they can try again
                     showStatusMessage('error', e.message);
-                } finally {
-                    hideStatusOverlay();
                 }
             }
         });
@@ -1082,7 +1107,7 @@ export function showAddSpecialtyModal(teacherId) {
     });
 }
 
-export async function handleRemoveSubject(studentId, subjectIndex) {
+export async function handleRemoveSubject(studentId, subjectIndex, subjectId) {
     const isCreateMode = studentId === 'new';
 
     showConfirmDialog("Remove Subject", "Are you sure you want to drop this subject?", async () => {
@@ -1096,23 +1121,16 @@ export async function handleRemoveSubject(studentId, subjectIndex) {
             document.getElementById('page-content').innerHTML = content;
         } else {
             // API Remove
+            if (!subjectId) {
+                showStatusMessage('error', "Cannot remove subject: Missing ID.");
+                return;
+            }
             showLoadingOverlay("Removing subject...");
             try {
-                const student = await fetchStudent(studentId);
-                 const currentSubjects = student.student_subjects.map(s => ({
-                    subject: s.subject,
-                    educational_system: s.educational_system,
-                    grade: s.grade,
-                    teacher_id: s.teacher_id,
-                    lessons_per_week: s.lessons_per_week,
-                    shared_with_student_ids: s.shared_with_student_ids
-                }));
-                
-                currentSubjects.splice(subjectIndex, 1);
-                
-                await updateStudent(studentId, { student_subjects: currentSubjects });
+                await deleteStudentSubject(studentId, subjectId);
                 showStatusMessage('success', 'Subject removed.');
                 
+                // Refresh view
                 const content = await renderStudentProfile(studentId, 'edit');
                 document.getElementById('page-content').innerHTML = content;
             } catch (e) {
@@ -1122,4 +1140,100 @@ export async function handleRemoveSubject(studentId, subjectIndex) {
             }
         }
     });
+}
+
+export async function showShareSubjectModal(studentId, subject) {
+    if (studentId === 'new' || !subject.id) {
+        showStatusMessage('error', 'Please save the student and subject first before sharing.');
+        return;
+    }
+
+    showLoadingOverlay('Loading students...');
+    try {
+        // Fetch all available students (siblings or teacher's students)
+        const allStudents = await fetchStudents();
+        hideStatusOverlay();
+
+        // Filter out the current student
+        const candidates = allStudents.filter(s => s.id !== studentId);
+
+        if (candidates.length === 0) {
+            showStatusMessage('info', 'No other students available to share with.');
+            return;
+        }
+
+        const renderList = () => {
+            return candidates.map(candidate => {
+                // Check if this candidate is already in the shared list
+                // subject.shared_with_students contains UserRead objects (with .id)
+                const isShared = (subject.shared_with_students || []).some(s => s.id === candidate.id);
+                
+                const btnColor = isShared ? 'text-red-400 hover:text-red-300 border-red-500/50' : 'text-green-400 hover:text-green-300 border-green-500/50';
+                const btnIcon = isShared ? 'fa-minus' : 'fa-plus';
+                const action = isShared ? 'remove' : 'add';
+
+                return `
+                    <div class="flex justify-between items-center bg-gray-700 p-3 rounded-md border border-gray-600">
+                        <span class="font-medium text-gray-200">${candidate.first_name} ${candidate.last_name}</span>
+                        <button class="toggle-share-btn p-2 border rounded-md ${btnColor} transition-colors" 
+                                data-candidate-id="${candidate.id}" 
+                                data-action="${action}"
+                                data-candidate-name="${candidate.first_name} ${candidate.last_name}">
+                            <i class="fas ${btnIcon}"></i>
+                        </button>
+                    </div>`;
+            }).join('');
+        };
+
+        const body = `<div id="share-candidates-list" class="space-y-2 max-h-60 overflow-y-auto pr-1">${renderList()}</div>`;
+        const footer = `<div class="flex justify-end"><button id="modal-close-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">Close</button></div>`;
+
+        showModal(`Share ${subject.subject}`, body, footer, (modal) => {
+            const listContainer = modal.querySelector('#share-candidates-list');
+
+            listContainer.addEventListener('click', async (e) => {
+                const btn = e.target.closest('.toggle-share-btn');
+                if (!btn) return;
+
+                const candidateId = btn.dataset.candidateId;
+                const action = btn.dataset.action;
+                const candidateName = btn.dataset.candidateName;
+
+                // Optimistic UI update or Loader? 
+                // Let's use a small loader on the button to show activity
+                const originalIcon = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                btn.disabled = true;
+
+                try {
+                    if (action === 'add') {
+                        const updatedSubject = await addSubjectSharing(studentId, subject.id, candidateId);
+                        // Update local object
+                        subject.shared_with_students = updatedSubject.shared_with_students;
+                    } else {
+                        await removeSubjectSharing(studentId, subject.id, candidateId);
+                        // Manually remove from local object
+                        subject.shared_with_students = (subject.shared_with_students || []).filter(s => s.id !== candidateId);
+                    }
+                    
+                    // Success: Re-render the list inside the modal to update button states
+                    listContainer.innerHTML = renderList();
+                    
+                    // Also update the main profile view in the background
+                    const content = await renderStudentProfile(studentId, 'edit');
+                    const pageContent = document.getElementById('page-content');
+                    if (pageContent) pageContent.innerHTML = content;
+
+                } catch (error) {
+                    showStatusMessage('error', error.message);
+                    btn.innerHTML = originalIcon;
+                    btn.disabled = false;
+                }
+            });
+        });
+
+    } catch (error) {
+        hideStatusOverlay();
+        showStatusMessage('error', error.message);
+    }
 }

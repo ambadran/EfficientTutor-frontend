@@ -26,12 +26,13 @@ function mapApiIntervalsToUi(apiIntervals) {
     return availability;
 }
 
-function mapTuitionSlotsToUi(slots) {
+// Exported for use in teacher.js
+export function mapTimetableSlotsToUi(slots) {
     if (!Array.isArray(slots)) return [];
     
     const uiEvents = [];
     slots.forEach(slot => {
-        if (slot.slot_type === 'Tuition' && slot.next_occurrence_start && slot.next_occurrence_end) {
+        if (slot.next_occurrence_start && slot.next_occurrence_end) {
             const startDate = new Date(slot.next_occurrence_start);
             const endDate = new Date(slot.next_occurrence_end);
             
@@ -42,25 +43,45 @@ function mapTuitionSlotsToUi(slots) {
             const startStr = startDate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
             const endStr = endDate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
 
-            // Resolve Subject Name directly from slot
-            // fallback to 'Tuition' if name is missing
-            const subject = slot.name || 'Tuition';
+            if (slot.slot_type === 'Tuition') {
+                // Resolve Subject Name directly from slot
+                // fallback to 'Tuition' if name is missing
+                const subject = slot.name || 'Tuition';
 
-            uiEvents.push({
-                id: slot.object_uuid,
-                subject: subject,
-                day: dayName,
-                start: startStr,
-                end: endStr,
-                type: 'tuition',
-                userId: slot.user_id // Preserving new attribute if needed
-            });
+                uiEvents.push({
+                    id: slot.object_uuid,
+                    subject: subject,
+                    day: dayName,
+                    start: startStr,
+                    end: endStr,
+                    type: 'tuition',
+                    userId: slot.user_id 
+                });
+            } else {
+                // Availability or Other
+                // Backend returns name like 'School', 'Sleep'. We need lowercase for config.colors keys.
+                // If name is missing, default to 'others'.
+                const type = slot.name ? slot.name.toLowerCase() : 'others';
+                
+                uiEvents.push({
+                    id: slot.object_uuid || slot.id, // Use object_uuid if avail, else slot id
+                    type: type, 
+                    day: dayName,
+                    start: startStr,
+                    end: endStr,
+                    // No subject means it renders as a generic colored block in renderTimetableComponent
+                    subject: null 
+                });
+            }
         }
     });
     return uiEvents;
 }
 
 // --- Components ---
+
+let cachedTimetableSlots = null;
+let lastTargetStudentId = 'undefined_initial';
 
 function renderStudentSelector() {
     // This selector is only for parents
@@ -346,34 +367,32 @@ export async function renderTimetablePage() {
     }
     
     try {
-        // Ensure we have the full student profile including availability
-        if (dataSource && !dataSource.availability_intervals) {
-            try {
-                const fullStudent = await fetchStudent(targetStudentId);
-                dataSource.availability_intervals = fullStudent.availability_intervals;
-                // Update availability cache immediately
-                dataSource.availability = mapApiIntervalsToUi(dataSource.availability_intervals);
-            } catch (e) {
-                console.warn("Could not fetch full student details for availability:", e);
-            }
+        let timetableSlots = [];
+        
+        if (targetStudentId === lastTargetStudentId && cachedTimetableSlots) {
+            timetableSlots = cachedTimetableSlots;
+        } else {
+            // Only show loader if we are actually fetching
+            // We can't easily show/hide loader here without potentially flickering if it's fast
+            // but since we are inside renderPage which sets a loader initially, we are fine.
+            timetableSlots = await fetchTimetable(targetStudentId);
+            cachedTimetableSlots = timetableSlots;
+            lastTargetStudentId = targetStudentId;
         }
-
-        // Fetch timetable ONLY for the specific student
-        // This avoids fetching all tuitions or generic parent data
-        const timetableSlots = await fetchTimetable(targetStudentId);
         
         // Map slots to UI events (using 'name' from slot directly)
-        const uiTuitions = mapTuitionSlotsToUi(timetableSlots);
+        // Now handles Tuition, Availability, and Others
+        const uiEvents = mapTimetableSlotsToUi(timetableSlots);
         
-        // Map student availability
-        // Ensure availability exists in dataSource
-        if (!dataSource.availability && dataSource.availability_intervals) {
-             dataSource.availability = mapApiIntervalsToUi(dataSource.availability_intervals);
-        } else if (!dataSource.availability) {
+        // For viewing mode, we don't need dataSource.availability populated from profile
+        // because all events are now in uiEvents.
+        // However, renderTimetableComponent expects dataSource.availability to exist (even if empty) 
+        // to avoid errors when it tries to access it.
+        if (!dataSource.availability) {
              dataSource.availability = mapApiIntervalsToUi([]);
         }
 
-        return renderTimetableComponent(false, dataSource, uiTuitions);
+        return renderTimetableComponent(false, dataSource, uiEvents);
     } catch (error) {
         console.error("Error fetching timetable:", error);
         return `<div class="text-center text-red-400 p-8">Error loading timetable: ${error.message}</div>`;

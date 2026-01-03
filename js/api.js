@@ -129,6 +129,24 @@ export const postStudent = (parentId, studentData) => {
         method: 'POST', body: JSON.stringify(payload)
     });
 };
+
+export const addStudentSubject = (studentId, subjectData) => apiRequest(`/students/${studentId}/subjects`, {
+    method: 'POST',
+    body: JSON.stringify(subjectData)
+});
+
+export const deleteStudentSubject = (studentId, subjectId) => apiRequest(`/students/${studentId}/subjects/${subjectId}`, {
+    method: 'DELETE'
+});
+
+export const addSubjectSharing = (studentId, subjectId, targetId) => apiRequest(`/students/${studentId}/subjects/${subjectId}/share/${targetId}`, {
+    method: 'POST'
+});
+
+export const removeSubjectSharing = (studentId, subjectId, targetId) => apiRequest(`/students/${studentId}/subjects/${subjectId}/share/${targetId}`, {
+    method: 'DELETE'
+});
+
 export const deleteStudentRequest = (studentId) => apiRequest(`/students/${studentId}`, {
     method: 'DELETE'
 });
@@ -309,7 +327,7 @@ export const registerDeviceToken = (userId, token, platform) => apiRequest('/not
 });
 
 export const unregisterDeviceToken = (userId, token) => apiRequest('/notify/unregister', {
-    method: 'POST',
+    method: 'DELETE',
     body: JSON.stringify({ user_id: userId, token }) // Schema: UserDeviceUpdate
 });
 
@@ -335,6 +353,11 @@ export const forceSyncAllDevices = (userId) => apiRequest('/notify/force_sync_al
     body: JSON.stringify({ user_id: userId, token: null })
 });
 
+export const pingUser = (notificationDetails) => apiRequest('/notify/ping_user', {
+    method: 'POST',
+    body: JSON.stringify(notificationDetails) // Schema: NotificationDetails
+});
+
 export const pingTuitionStudents = (notificationDetails) => apiRequest('/notify/ping_tuition_students', {
     method: 'POST',
     body: JSON.stringify(notificationDetails) // Schema: NotificationDetails
@@ -344,5 +367,3 @@ export const pingTuitionStudentsParents = (notificationDetails) => apiRequest('/
     method: 'POST',
     body: JSON.stringify(notificationDetails) // Schema: NotificationDetails
 });
-
-// --- Metadata (TODO: Replace with actual endpoints) ---

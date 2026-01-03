@@ -9,7 +9,7 @@ import { confirmDeleteStudent } from './ui/templates.js';
 import { closeModal, showLoadingOverlay, showStatusMessage, hideStatusOverlay, showAuthFeedback, clearAuthFeedback, showModal, showConfirmDialog } from './ui/modals.js';
 import { renderTeacherTuitionLogsPage, handleVoidLog, showChargesDetail, showAddTuitionLogModal, renderTeacherPaymentLogsPage, showAddPaymentLogModal, handleVoidPaymentLog, showMeetingLinkModal, showMeetingLinkDetailsModal, handleTuitionFilterTypeChange, handleTuitionFilterEntityChange, handlePaymentFilterTypeChange, handlePaymentFilterEntityChange, showEditTuitionModal } from './ui/teacher.js';
 import { renderNotesList, showCreateNoteModal, showUpdateNoteModal } from './ui/notes.js';
-import { renderStudentProfile, handleSaveStudentDetails, handleCreateStudent, showAddSubjectModal, handleRemoveSubject, handleProfileTimetableAction, updateProfileTimetable } from './ui/profile.js';
+import { renderStudentProfile, handleSaveStudentDetails, handleCreateStudent, showAddSubjectModal, handleRemoveSubject, handleProfileTimetableAction, updateProfileTimetable, showShareSubjectModal, tempStudentProfileData } from './ui/profile.js';
 import { renderTimetableComponent, wizardTimetableHandlers } from './ui/timetable.js';
 import { showPingModal } from './ui/pings.js';
 import { initializeNotifications } from './notifications.js';
@@ -797,7 +797,19 @@ document.body.addEventListener('click', (e) => {
 
     const removeSubjectBtn = closest('.remove-subject-btn');
     if (removeSubjectBtn) {
-        handleRemoveSubject(removeSubjectBtn.dataset.studentId, parseInt(removeSubjectBtn.dataset.subjectIndex));
+        handleRemoveSubject(
+            removeSubjectBtn.dataset.studentId, 
+            parseInt(removeSubjectBtn.dataset.subjectIndex),
+            removeSubjectBtn.dataset.subjectId
+        );
+    }
+
+    const shareSubjectBtn = closest('.share-subject-btn');
+    if (shareSubjectBtn) {
+        const index = parseInt(shareSubjectBtn.dataset.subjectIndex);
+        if (tempStudentProfileData && tempStudentProfileData.student_subjects && tempStudentProfileData.student_subjects[index]) {
+            showShareSubjectModal(shareSubjectBtn.dataset.studentId, tempStudentProfileData.student_subjects[index]);
+        }
     }
 
     if (closest('#cancel-create-student-btn')) {
