@@ -1,6 +1,6 @@
 // --- IMPORTS ---
 import { appState, config } from './config.js';
-import { checkBackendStatus, postStudent, deleteStudentRequest, fetchStudent, deleteNote, deleteMeetingLink, updateTeacher, updateParent, addTeacherSpecialty, deleteTeacherSpecialty } from './api.js';
+import { checkBackendStatus, postStudent, deleteStudentRequest, fetchStudent, deleteNote, deleteMeetingLink, updateTeacher, updateParent, addTeacherSpecialty, deleteTeacherSpecialty, deactivateUser, deleteUser } from './api.js';
 import { checkAuthState, handleLogin, handleSignup, handleLogout } from './auth.js';
 import { navigateTo, renderPage, handleParentLogFilterTypeChange, handleParentLogFilterEntityChange } from './ui/navigation.js';
 import { toggleSidebar, displayGlobalError, initializeLayout } from './ui/layout.js';
@@ -855,6 +855,49 @@ document.body.addEventListener('click', (e) => {
                 renderPage();
             }
         }
+    }
+
+    // --- Account Management ---
+    const deactivateBtn = closest('.btn-deactivate-account');
+    if (deactivateBtn) {
+        const userId = deactivateBtn.dataset.userId;
+        showConfirmDialog(
+            'Deactivate Account', 
+            'Are you sure you want to deactivate your account? You will be logged out immediately.', 
+            async () => {
+                showLoadingOverlay('Deactivating account...');
+                try {
+                    await deactivateUser(userId);
+                    handleLogout();
+                    showStatusMessage('success', 'Account deactivated.');
+                } catch (error) {
+                    showStatusMessage('error', error.message);
+                } finally {
+                    hideStatusOverlay();
+                }
+            }
+        );
+    }
+
+    const deleteAccountBtn = closest('.btn-delete-account');
+    if (deleteAccountBtn) {
+        const userId = deleteAccountBtn.dataset.userId;
+        showConfirmDialog(
+            'Delete Account', 
+            'Are you sure you want to DELETE your account? This action cannot be undone and all your data will be lost.', 
+            async () => {
+                showLoadingOverlay('Deleting account...');
+                try {
+                    await deleteUser(userId);
+                    handleLogout();
+                    showStatusMessage('success', 'Account deleted.');
+                } catch (error) {
+                    showStatusMessage('error', error.message);
+                } finally {
+                    hideStatusOverlay();
+                }
+            }
+        );
     }
 });
 

@@ -367,3 +367,12 @@ export const pingTuitionStudentsParents = (notificationDetails) => apiRequest('/
     method: 'POST',
     body: JSON.stringify(notificationDetails) // Schema: NotificationDetails
 });
+
+// --- User Account Management ---
+export const deactivateUser = (userId) => apiRequest(`/users/${userId}/deactivate`, {
+    method: 'POST'
+});
+
+export const deleteUser = (userId) => apiRequest(`/users/${userId}`, {
+    method: 'DELETE'
+});

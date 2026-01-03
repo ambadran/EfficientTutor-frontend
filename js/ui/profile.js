@@ -32,6 +32,26 @@ import { renderTimetableComponent, wizardTimetableHandlers } from './timetable.j
 // --- State for Student Editing ---
 export let tempStudentProfileData = null;
 
+// --- Helper: Render Danger Zone ---
+function renderDangerZone(userId) {
+    return `
+        <div class="bg-red-900/20 border border-red-900/50 p-6 rounded-lg shadow-md mt-8">
+            <h3 class="text-xl font-semibold mb-4 text-red-400">Danger Zone</h3>
+            <p class="text-gray-400 text-sm mb-6">
+                Once you delete your account, there is no going back. Please be certain.
+            </p>
+            <div class="flex flex-col md:flex-row gap-4">
+                <button class="btn-deactivate-account bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-500 border border-yellow-600/50 font-bold py-2 px-6 rounded-md transition duration-300" data-user-id="${userId}">
+                    Deactivate Account
+                </button>
+                <button class="btn-delete-account bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-md transition duration-300" data-user-id="${userId}">
+                    Delete Account
+                </button>
+            </div>
+        </div>
+    `;
+}
+
 // --- Helpers: Data Transformation ---
 function mapApiIntervalsToUi(apiIntervals) {
     const availability = {};
@@ -243,11 +263,12 @@ export async function renderTeacherProfile(userId = appState.currentUser?.id) {
     }, 0);
 
     return `
-        <div class="max-w-4xl mx-auto">
+        <div class="max-w-4xl mx-auto pb-8">
             <h2 class="text-2xl font-bold mb-6">Teacher Profile</h2>
             ${personalInfoHTML}
             ${availabilityHTML}
             ${specialtiesHTML}
+            ${renderDangerZone(userId)}
         </div>
     `;
 }
@@ -310,6 +331,7 @@ export async function renderParentProfile(userId = appState.currentUser?.id) {
                     </button>
                 </div>
             </div>
+            ${renderDangerZone(userId)}
         </div>
     `;
 }
@@ -365,6 +387,9 @@ export async function renderStudentProfile(studentId, mode = 'view') {
     const isTeacher = role === 'teacher';
     const isParent = role === 'parent';
     const isStudent = role === 'student';
+
+    // Check if viewing own profile (Student role) to show Danger Zone
+    const showDangerZone = appState.currentUser?.role === 'student' && appState.currentUser?.id === studentId && mode === 'view';
 
     const renderOptions = (items, selected) => items.map(i => `<option value="${i}" ${i === selected ? 'selected' : ''}>${i}</option>`).join('');
     const statusOptions = ["NONE", "Alpha", "Omega", "Sigma", "HIM"]; 
@@ -505,7 +530,7 @@ export async function renderStudentProfile(studentId, mode = 'view') {
     }
 
     return `
-        <div class="max-w-4xl mx-auto space-y-6">
+        <div class="max-w-4xl mx-auto space-y-6 pb-8">
              ${isCreate ? '<button id="cancel-create-student-btn" class="text-gray-400 hover:text-white mb-2"><i class="fas fa-arrow-left mr-2"></i> Back to List</button>' : ''}
             ${formHTML}
             ${subjectsHTML}
@@ -516,6 +541,7 @@ export async function renderStudentProfile(studentId, mode = 'view') {
                         Create Student
                     </button>
                 </div>` : ''}
+            ${showDangerZone ? renderDangerZone(studentId) : ''}
         </div>
     `;
 }
